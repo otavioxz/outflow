@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AoVivo } from "@/components/ao-vivo";
+import { AreaRolavel } from "@/components/area-rolavel";
 import { Cabecalho } from "@/components/cabecalho";
 import { GraficoCategorias, GraficoDiario } from "@/components/graficos";
 import { Badge } from "@/components/ui/badge";
@@ -192,57 +193,60 @@ async function Painel({ searchParams }: Props) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0 sm:px-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16 pl-4 sm:pl-2">Data</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead className="hidden sm:table-cell">Categoria</TableHead>
-                      <TableHead className="hidden md:table-cell">Pagamento</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="w-10 pr-4 sm:pr-2">
-                        <span className="sr-only">Ações</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {gastos.map((g) => (
-                      <TableRow key={g.id}>
-                        <TableCell className="pl-4 text-muted-foreground tabular-nums sm:pl-2">
-                          {g.data.split("-").reverse().slice(0, 2).join("/")}
-                        </TableCell>
-                        <TableCell className="max-w-56 whitespace-normal">
-                          <span className="inline-flex items-center gap-1.5 font-medium">
-                            {g.descricao}
-                            {g.origem === "audio" && (
-                              <Mic className="size-3.5 text-muted-foreground" aria-label="Registrado por áudio" />
-                            )}
-                          </span>
-                          <span className="block text-xs text-muted-foreground sm:hidden">{g.categoria}</span>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <Badge variant="secondary">{g.categoria}</Badge>
-                        </TableCell>
-                        <TableCell className="hidden text-muted-foreground md:table-cell">{NOME_PAGAMENTO[g.pagamento]}</TableCell>
-                        <TableCell className="text-right font-medium tabular-nums">{formatarReais(g.valor_centavos)}</TableCell>
-                        <TableCell className="pr-4 sm:pr-2">
-                          <form action={apagarGastoAction}>
-                            <input type="hidden" name="id" value={g.id} />
-                            <Button
-                              type="submit"
-                              variant="ghost"
-                              size="icon-sm"
-                              className="text-muted-foreground hover:text-destructive"
-                              aria-label={`Apagar ${g.descricao}`}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </form>
-                        </TableCell>
+                {/* a rolagem fica aqui dentro (com o cabeçalho fixo), não na página */}
+                <AreaRolavel>
+                  <Table containerClassName="overflow-visible">
+                    <TableHeader className="sticky top-0 z-10 bg-card">
+                      <TableRow>
+                        <TableHead className="w-16 pl-4 sm:pl-2">Data</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="hidden sm:table-cell">Categoria</TableHead>
+                        <TableHead className="hidden md:table-cell">Pagamento</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead className="w-10 pr-4 sm:pr-2">
+                          <span className="sr-only">Ações</span>
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {gastos.map((g) => (
+                        <TableRow key={g.id}>
+                          <TableCell className="pl-4 text-muted-foreground tabular-nums sm:pl-2">
+                            {g.data.split("-").reverse().slice(0, 2).join("/")}
+                          </TableCell>
+                          <TableCell className="max-w-56 whitespace-normal">
+                            <span className="inline-flex items-center gap-1.5 font-medium">
+                              {g.descricao}
+                              {g.origem === "audio" && (
+                                <Mic className="size-3.5 text-muted-foreground" aria-label="Registrado por áudio" />
+                              )}
+                            </span>
+                            <span className="block text-xs text-muted-foreground sm:hidden">{g.categoria}</span>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">
+                            <Badge variant="secondary">{g.categoria}</Badge>
+                          </TableCell>
+                          <TableCell className="hidden text-muted-foreground md:table-cell">{NOME_PAGAMENTO[g.pagamento]}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatarReais(g.valor_centavos)}</TableCell>
+                          <TableCell className="pr-4 sm:pr-2">
+                            <form action={apagarGastoAction}>
+                              <input type="hidden" name="id" value={g.id} />
+                              <Button
+                                type="submit"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-muted-foreground hover:text-destructive"
+                                aria-label={`Apagar ${g.descricao}`}
+                              >
+                                <Trash2 />
+                              </Button>
+                            </form>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </AreaRolavel>
               </CardContent>
             </Card>
           </>
