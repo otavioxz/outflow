@@ -50,7 +50,8 @@ export function ListaLancamentos({
       <Dialog open={cheia} onOpenChange={setCheia}>
         <DialogContent
           showCloseButton={false}
-          className="top-2 left-2 flex h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] max-w-none translate-x-0 translate-y-0 origin-bottom flex-col gap-0 bg-card p-0 duration-300 ease-out sm:top-6 sm:left-6 sm:h-[calc(100svh-3rem)] sm:w-[calc(100vw-3rem)] sm:max-w-none data-open:slide-in-from-bottom-8 data-open:zoom-in-90 data-closed:slide-out-to-bottom-8 data-closed:zoom-out-90"
+          classNameFundo="bg-black/60 supports-backdrop-filter:backdrop-blur-none duration-200"
+          className="top-2 left-2 flex h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] max-w-none translate-x-0 translate-y-0 origin-bottom flex-col gap-0 bg-card p-0 duration-200 ease-out will-change-[transform,opacity] backface-hidden sm:top-6 sm:left-6 sm:h-[calc(100svh-3rem)] sm:w-[calc(100vw-3rem)] sm:max-w-none data-open:slide-in-from-bottom-6 data-open:zoom-in-95 data-closed:slide-out-to-bottom-6 data-closed:zoom-out-95"
         >
           <div className="flex items-start justify-between gap-4 border-b px-4 py-4 sm:px-6">
             <div className="space-y-1">
@@ -71,7 +72,7 @@ export function ListaLancamentos({
               <Minimize2 />
             </DialogClose>
           </div>
-          <div className="rolagem-fina min-h-0 flex-1 overflow-y-auto overscroll-contain px-0 pb-4 sm:px-6">{children}</div>
+          <div className="rolagem-fina min-h-0 flex-1 overflow-y-auto overscroll-contain px-0 pb-4 sm:px-6 [&_[data-col=pagamento]]:table-cell max-sm:[&_:is(td,th):not(:first-child,:last-child)]:px-1">{children}</div>
         </DialogContent>
       </Dialog>
     </>

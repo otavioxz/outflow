@@ -195,7 +195,9 @@ async function Painel({ searchParams }: Props) {
                     <TableHead className="w-16 pl-4 sm:pl-2">Data</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead className="hidden sm:table-cell">Categoria</TableHead>
-                    <TableHead className="hidden md:table-cell">Pagamento</TableHead>
+                    <TableHead data-col="pagamento" className="hidden md:table-cell">
+                      Pagamento
+                    </TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="w-10 pr-4 sm:pr-2">
                       <span className="sr-only">Ações</span>
@@ -220,7 +222,9 @@ async function Painel({ searchParams }: Props) {
                       <TableCell className="hidden sm:table-cell">
                         <Badge variant="secondary">{g.categoria}</Badge>
                       </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">{NOME_PAGAMENTO[g.pagamento]}</TableCell>
+                      <TableCell data-col="pagamento" className="hidden text-muted-foreground md:table-cell">
+                        {NOME_PAGAMENTO[g.pagamento]}
+                      </TableCell>
                       <TableCell className="text-right font-medium tabular-nums">{formatarReais(g.valor_centavos)}</TableCell>
                       <TableCell className="pr-4 sm:pr-2">
                         <form action={apagarGastoAction}>
