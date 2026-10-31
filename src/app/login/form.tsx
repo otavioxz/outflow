@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { AlertCircle, Loader2, Terminal } from "lucide-react";
+import { AlertCircle, Loader2, LogIn, Terminal } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,7 @@ export function FormLogin({ semUsuarios }: { semUsuarios: boolean }) {
         />
       </div>
       <Button type="submit" className="h-10 w-full" disabled={enviando}>
-        {enviando && <Loader2 className="animate-spin" />}
+        {enviando ? <Loader2 className="animate-spin" /> : <LogIn />}
         {enviando ? "Entrando…" : "Entrar"}
       </Button>
     </form>

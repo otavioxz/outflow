@@ -84,17 +84,22 @@ export function AoVivo() {
     <span
       role="status"
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-medium",
+        "inline-flex h-7 items-center gap-1.5 rounded-full bg-card px-2.5 text-xs font-medium ring-1 ring-foreground/10",
         estado === "offline" ? "text-muted-foreground" : estado === "atualizado" ? "text-success" : "text-muted-foreground",
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "size-2 rounded-full",
-          estado === "offline" ? "bg-muted-foreground" : "bg-success motion-safe:animate-pulse",
+      <span aria-hidden className="relative flex size-2">
+        {/* onda que se expande a partir da bolinha enquanto está conectado */}
+        {estado !== "offline" && (
+          <span className="absolute inline-flex size-full rounded-full bg-success opacity-60 motion-safe:animate-ping" />
         )}
-      />
+        <span
+          className={cn(
+            "relative inline-flex size-2 rounded-full",
+            estado === "offline" ? "bg-muted-foreground" : "bg-success shadow-[0_0_6px_var(--success)]",
+          )}
+        />
+      </span>
       {estado === "offline" ? "Sem conexão" : estado === "atualizado" ? "Atualizado agora" : "Ao vivo"}
     </span>
   );
