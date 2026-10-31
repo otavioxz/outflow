@@ -6,7 +6,7 @@
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-titulo);
   --font-sans: var(--font-sans);
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -110,5 +110,10 @@
   }
   html {
     @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading;
   }
 }
