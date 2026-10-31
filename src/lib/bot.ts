@@ -16,32 +16,47 @@ Comandos:
 • *desfazer*: apaga o último gasto registrado
 • *ajuda*: mostra esta mensagem`;
 
-/** Processa uma mensagem recebida e devolve o texto de resposta. */
-export async function processarMensagem(msg: MensagemWhatsApp): Promise<string> {
+export type Resultado = {
+  /** gasto = algo foi registrado; comando = resumo/ajuda/desfazer; sem_gasto = não entendeu; ignorada = tipo não suportado */
+  tipo: "gasto" | "comando" | "sem_gasto" | "ignorada";
+  /** O que o bot responderia (vai para o log e, se ativado, para o WhatsApp) */
+  resposta: string;
+  /** Texto recebido (ou transcrito do áudio) */
+  texto?: string;
+  origem: "texto" | "audio";
+  comando?: string;
+};
+
+/** Processa uma mensagem recebida e devolve o resultado (o que foi feito e a resposta). */
+export async function processarMensagem(msg: MensagemWhatsApp): Promise<Resultado> {
   let texto: string;
   let origem: "texto" | "audio" = "texto";
 
   if (msg.type === "text" && msg.text) {
     texto = msg.text.body.trim();
   } else if (msg.type === "audio" && msg.audio) {
-    if (!transcricaoConfigurada()) return "🎤 Recebi seu áudio, mas a transcrição ainda não está configurada (TRANSCRICAO_API_KEY).";
+    if (!transcricaoConfigurada())
+      return { tipo: "ignorada", origem: "audio", resposta: "🎤 Recebi um áudio, mas a transcrição ainda não está configurada (TRANSCRICAO_API_KEY)." };
     const audio = await baixarMidia(msg.audio.id);
     texto = await transcreverAudio(audio, msg.audio.mime_type?.split(";")[0]);
     origem = "audio";
-    if (!texto) return "🎤 Não consegui entender o áudio. Pode repetir?";
+    if (!texto) return { tipo: "sem_gasto", origem, resposta: "🎤 Não consegui entender o áudio. Pode repetir?" };
   } else {
-    return "Por enquanto só entendo texto e áudio. 🙂";
+    return { tipo: "ignorada", origem, resposta: `Tipo de mensagem não suportado (${msg.type}). Por enquanto só entendo texto e áudio.` };
   }
 
   const comando = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w\s]/g, "").trim();
-  if (["oi", "ola", "ajuda", "menu", "help"].includes(comando)) return AJUDA;
-  if (["resumo", "saldo", "total"].includes(comando)) return resumoDoMes();
-  if (["desfazer", "apagar", "cancelar", "desfaz"].includes(comando)) return desfazer();
+  if (["oi", "ola", "ajuda", "menu", "help"].includes(comando))
+    return { tipo: "comando", comando: "ajuda", texto, origem, resposta: AJUDA };
+  if (["resumo", "saldo", "total"].includes(comando))
+    return { tipo: "comando", comando: "resumo", texto, origem, resposta: await resumoDoMes() };
+  if (["desfazer", "apagar", "cancelar", "desfaz"].includes(comando))
+    return { tipo: "comando", comando: "desfazer", texto, origem, resposta: await desfazer() };
 
   const gastos = await extrairGastos(texto);
   if (gastos.length === 0) {
     const eco = origem === "audio" ? `\n\n🎤 Entendi: "${texto}"` : "";
-    return `🤔 Não encontrei nenhum gasto nessa mensagem. Tente algo como "gastei 45 no ifood".${eco}`;
+    return { tipo: "sem_gasto", texto, origem, resposta: `🤔 Não encontrei nenhum gasto nessa mensagem. Tente algo como "gastei 45 no ifood".${eco}` };
   }
 
   await inserirGastos(
@@ -67,7 +82,7 @@ export async function processarMensagem(msg: MensagemWhatsApp): Promise<string> 
   const total = await totalDoMes(mes);
   linhas.push("", `📊 Total do mês: ${formatarReais(total)}${linhaOrcamento(total)}`);
   if (origem === "audio") linhas.push(`🎤 "${texto}"`);
-  return linhas.join("\n");
+  return { tipo: "gasto", texto, origem, resposta: linhas.join("\n") };
 }
 
 async function resumoDoMes(): Promise<string> {

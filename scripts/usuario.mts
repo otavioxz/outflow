@@ -4,9 +4,17 @@
 //   npm run usuario -- senha voce@email.com
 //   npm run usuario -- remover voce@email.com
 //   npm run usuario -- listar
-import "dotenv/config";
+//
+// Acrescente --prod para mexer nos usuários do banco online (Turso), lendo o .env.producao:
+//   npm run usuario -- adicionar voce@email.com "Seu Nome" --prod
+import { argumentos } from "./_env.mjs";
 import readline from "node:readline";
+import os from "node:os";
+import { registrarEvento } from "../src/lib/log-discord";
 import { adicionarUsuario, listarUsuarios, removerUsuario, trocarSenha } from "../src/lib/usuarios";
+
+const MIN_SENHA = 12;
+const origem = `terminal (${os.userInfo().username}@${os.hostname()})`;
 
 /** Pergunta a senha sem mostrar o que é digitado. */
 function perguntarSenha(pergunta: string): Promise<string> {
@@ -27,14 +35,17 @@ function perguntarSenha(pergunta: string): Promise<string> {
 }
 
 async function pedirSenhaNova(): Promise<string> {
-  const senha = await perguntarSenha("Senha (mínimo 8 caracteres): ");
-  if (senha.length < 8) throw new Error("A senha precisa ter pelo menos 8 caracteres.");
+  const senha = await perguntarSenha(`Senha (mínimo ${MIN_SENHA} caracteres): `);
+  if (senha.length < MIN_SENHA) throw new Error(`A senha precisa ter pelo menos ${MIN_SENHA} caracteres.`);
+  if (/^(.)\1+$/.test(senha) || /^(0?123456789|senha|password|qwerty)/i.test(senha)) {
+    throw new Error("Essa senha é fácil demais de adivinhar.");
+  }
   const confirmacao = await perguntarSenha("Repita a senha: ");
   if (senha !== confirmacao) throw new Error("As senhas não conferem.");
   return senha;
 }
 
-const [comando, email, ...resto] = process.argv.slice(2);
+const [comando, email, ...resto] = argumentos;
 
 try {
   switch (comando) {
@@ -43,18 +54,25 @@ try {
       const nome = resto.join(" ") || email.split("@")[0];
       await adicionarUsuario(email.toLowerCase(), nome, await pedirSenhaNova());
       console.log(`✅ ${nome} <${email}> pode entrar no painel.`);
+      await registrarEvento({
+        titulo: "Acesso concedido a novo usuário",
+        nivel: "alerta",
+        campos: { Usuário: `${nome} <${email}>`, Origem: origem },
+      });
       break;
     }
     case "senha": {
       if (!email) throw new Error("Uso: npm run usuario -- senha email@exemplo.com");
       if (!(await trocarSenha(email, await pedirSenhaNova()))) throw new Error(`Usuário ${email} não encontrado.`);
       console.log("✅ Senha trocada. As sessões abertas desse usuário foram encerradas.");
+      await registrarEvento({ titulo: "Senha trocada", nivel: "info", campos: { Usuário: email, Origem: origem } });
       break;
     }
     case "remover": {
       if (!email) throw new Error("Uso: npm run usuario -- remover email@exemplo.com");
       if (!(await removerUsuario(email))) throw new Error(`Usuário ${email} não encontrado.`);
       console.log(`🗑️ ${email} não tem mais acesso.`);
+      await registrarEvento({ titulo: "Acesso removido", nivel: "alerta", campos: { Usuário: email, Origem: origem } });
       break;
     }
     case "listar": {

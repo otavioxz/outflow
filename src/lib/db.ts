@@ -42,6 +42,13 @@ export async function prepararDb(): Promise<Client> {
           senha_hash TEXT NOT NULL,
           criado_em TEXT NOT NULL DEFAULT (datetime('now'))
         )`,
+        // Limite de tentativas de login (fica no banco para valer mesmo com o servidor reiniciando)
+        `CREATE TABLE IF NOT EXISTS tentativas_login (
+          chave TEXT PRIMARY KEY,
+          erros INTEGER NOT NULL,
+          primeira_em INTEGER NOT NULL,
+          bloqueado_ate INTEGER NOT NULL DEFAULT 0
+        )`,
         // Guardamos só o hash do token da sessão; o token em si fica apenas no cookie do navegador
         `CREATE TABLE IF NOT EXISTS sessoes (
           token_hash TEXT PRIMARY KEY,

@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import readline from "node:readline/promises";
 
 const URL_WEBHOOK = process.env.SIMULADOR_URL ?? "http://localhost:3000/api/webhook";
-const NUMERO = process.env.MEU_NUMERO ?? "5511999999999";
+const NUMERO = (process.env.MEU_NUMERO ?? "5511999999999").split(",")[0].replace(/\D/g, "");
 
 function montarPayload(mensagem: Record<string, unknown>) {
   return {
@@ -58,7 +58,9 @@ async function enviar(mensagem: Record<string, unknown>) {
 
   const { respostas } = (await resp.json()) as { respostas?: string[] };
   if (!respostas) {
-    console.log("✅ Enviado. (WHATSAPP_TOKEN configurado: a resposta foi para o WhatsApp de verdade.)");
+    console.log(process.env.RESPONDER_NO_WHATSAPP === "true"
+      ? "✅ Enviado. A resposta foi para o WhatsApp de verdade e o resultado para o log do Discord."
+      : "✅ Enviado. O resultado foi para o log do Discord.");
     return;
   }
   for (const r of respostas) console.log(`\n🤖 ${r.replace(/\n/g, "\n   ")}\n`);

@@ -25,9 +25,20 @@ export type MensagemWhatsApp = {
 
 const GRAPH = () => `https://graph.facebook.com/${process.env.GRAPH_VERSION ?? "v23.0"}`;
 
-/** Sem WHATSAPP_TOKEN o app roda em modo simulação: nada é enviado para a Meta. */
+/**
+ * Sem WHATSAPP_TOKEN o app roda em modo simulação: nada é enviado para a Meta e o webhook devolve
+ * as respostas no corpo. Isso só existe fora de produção: online, o webhook exige a Meta de verdade.
+ */
 export function modoSimulacao(): boolean {
-  return !process.env.WHATSAPP_TOKEN;
+  return !process.env.WHATSAPP_TOKEN && process.env.NODE_ENV !== "production";
+}
+
+/** Compara dois segredos em tempo constante (não revela quantos caracteres batem). */
+export function segredoConfere(recebido: string | null | undefined, esperado: string | undefined): boolean {
+  if (!recebido || !esperado) return false;
+  const a = crypto.createHash("sha256").update(recebido).digest();
+  const b = crypto.createHash("sha256").update(esperado).digest();
+  return crypto.timingSafeEqual(a, b);
 }
 
 export function extrairMensagens(payload: WebhookPayload): MensagemWhatsApp[] {
@@ -43,15 +54,34 @@ export function assinaturaValida(corpo: string, assinatura: string | null): bool
   return assinatura.length === esperado.length && crypto.timingSafeEqual(Buffer.from(assinatura), Buffer.from(esperado));
 }
 
-/** Só aceita mensagens do seu número (compara os 8 últimos dígitos por causa do 9º dígito no Brasil). */
+/**
+ * Normaliza um número brasileiro para comparação: a Meta às vezes entrega celulares sem o 9º dígito
+ * (5511988887777 vira 551188887777), então o removemos dos dois lados antes de comparar.
+ */
+function normalizarNumero(numero: string): string {
+  const d = numero.replace(/\D/g, "");
+  return d.length === 13 && d.startsWith("55") && d[4] === "9" ? d.slice(0, 4) + d.slice(5) : d;
+}
+
+/** Só aceita mensagens dos números em MEU_NUMERO (um ou vários, separados por vírgula). */
 export function remetentePermitido(from: string): boolean {
-  const meu = process.env.MEU_NUMERO?.replace(/\D/g, "");
-  if (!meu) return true;
-  return from.replace(/\D/g, "").slice(-8) === meu.slice(-8);
+  const permitidos = (process.env.MEU_NUMERO ?? "").split(",").map(normalizarNumero).filter(Boolean);
+  if (permitidos.length === 0) return process.env.NODE_ENV !== "production"; // online, sem lista = ninguém
+  return permitidos.includes(normalizarNumero(from));
+}
+
+/**
+ * A Meta entrega celulares brasileiros sem o 9º dígito (554788887777), mas responder para esse formato
+ * falha com "131030 Recipient phone number not in allowed list". Recoloca o 9 antes de enviar.
+ */
+export function numeroParaEnvio(numero: string): string {
+  const d = numero.replace(/\D/g, "");
+  return d.length === 12 && d.startsWith("55") && /[6-9]/.test(d[4]) ? d.slice(0, 4) + "9" + d.slice(4) : d;
 }
 
 export async function enviarTexto(para: string, texto: string): Promise<void> {
   if (modoSimulacao()) return;
+  para = numeroParaEnvio(para);
   const resp = await fetch(`${GRAPH()}/${process.env.PHONE_NUMBER_ID}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },

@@ -78,9 +78,15 @@ export async function desfazerUltimo(): Promise<Gasto | null> {
   return r.rows[0] ? ({ ...r.rows[0] } as unknown as Gasto) : null;
 }
 
-export async function apagarGasto(id: number): Promise<void> {
+/** Apaga um gasto e o retorna (null se não existia). */
+export async function apagarGasto(id: number): Promise<Gasto | null> {
   const db = await prepararDb();
-  await db.execute({ sql: `DELETE FROM gastos WHERE id = ?`, args: [id] });
+  const r = await db.execute({
+    sql: `DELETE FROM gastos WHERE id = ?
+          RETURNING id, valor_centavos, descricao, categoria, pagamento, data, origem, criado_em`,
+    args: [id],
+  });
+  return r.rows[0] ? ({ ...r.rows[0] } as unknown as Gasto) : null;
 }
 
 /** Marca a mensagem como processada. Retorna false se ela já tinha sido vista antes. */
