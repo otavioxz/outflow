@@ -66,7 +66,7 @@ async function Painel({ searchParams }: Props) {
   const nomeMesAnterior = new Date(ano, m - 2, 15).toLocaleDateString("pt-BR", { month: "long" });
 
   return (
-    <div className="min-h-screen">
+    <div className="flex-1">
       <Cabecalho nome={usuario.nome} email={usuario.email} />
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:py-8">
@@ -281,7 +281,7 @@ function BarraOrcamento({ pct, orcamento, total }: { pct: number; orcamento: num
 
 function Carregando() {
   return (
-    <div className="min-h-screen">
+    <div className="flex-1">
       <div className="h-14 border-b" />
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
         <Skeleton className="h-9 w-64" />

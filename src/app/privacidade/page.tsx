@@ -12,7 +12,7 @@ export default function Privacidade() {
   const contato = process.env.CONTATO_PRIVACIDADE;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
+    <main className="mx-auto w-full max-w-2xl px-4 py-12">
       <div className="mb-10 flex justify-center">
         <LogoCompleta />
       </div>

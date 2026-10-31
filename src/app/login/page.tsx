@@ -13,12 +13,12 @@ export const metadata: Metadata = { title: "Entrar · Outflow" };
 
 export default function LoginPage() {
   return (
-    <main className="grid min-h-screen place-items-center px-4 py-12">
+    <main className="grid flex-1 place-items-center px-4 py-12">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <h1 className="sr-only">Outflow</h1>
           <LogoCompleta />
-          <p className="text-sm text-muted-foreground">Seus gastos do WhatsApp, num lugar só</p>
+          <p className="text-sm text-muted-foreground">Seus gastos, em um lugar só!</p>
         </div>
         <Card>
           <CardHeader>

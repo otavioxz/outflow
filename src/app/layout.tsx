@@ -20,8 +20,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={cn("font-sans", texto.variable, titulos.variable)}>
-      <body>
+      <body className="flex min-h-svh flex-col">
         {children}
+        <footer className="py-5 text-center text-[11px] tracking-wide text-muted-foreground/50">Dev. by Otavio</footer>
         <RegistroVisita />
         <Toaster position="bottom-right" closeButton />
       </body>

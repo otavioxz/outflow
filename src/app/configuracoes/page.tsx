@@ -39,7 +39,7 @@ async function Configuracoes() {
   const pct = orcamento ? Math.round((gastoNoMes / orcamento) * 100) : 0;
 
   return (
-    <div className="min-h-screen">
+    <div className="flex-1">
       <Cabecalho nome={usuario.nome} email={usuario.email} />
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:py-8">
@@ -106,7 +106,7 @@ async function Configuracoes() {
 
 function Carregando() {
   return (
-    <div className="min-h-screen">
+    <div className="flex-1">
       <div className="h-14 border-b" />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <Skeleton className="h-8 w-48" />
