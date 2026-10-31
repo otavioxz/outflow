@@ -54,12 +54,39 @@ const DIAS_SEMANA = ["domingo", "segunda-feira", "terça-feira", "quarta-feira",
 
 let cliente: Anthropic | undefined;
 
-export async function extrairGastos(texto: string): Promise<GastoExtraido[]> {
-  if (!process.env.ANTHROPIC_API_KEY) return extrairSemIA(texto);
+/** Chave do Groq: GROQ_API_KEY, ou a mesma da transcrição quando ela já usa o Groq. */
+function chaveGroq(): string | undefined {
+  if (process.env.GROQ_API_KEY) return process.env.GROQ_API_KEY;
+  if (process.env.TRANSCRICAO_URL?.includes("groq.com")) return process.env.TRANSCRICAO_API_KEY;
+}
 
-  cliente ??= new Anthropic();
+/** Qual extrator está em uso: Claude (se houver chave), senão Groq, senão palavras-chave. */
+export function extratorAtivo(): "claude" | "groq" | "simples" {
+  return process.env.ANTHROPIC_API_KEY ? "claude" : chaveGroq() ? "groq" : "simples";
+}
+
+function cabecalhoData(): string {
   const hoje = hojeISO();
-  const diaSemana = DIAS_SEMANA[new Date(`${hoje}T12:00:00`).getDay()];
+  return `Hoje é ${DIAS_SEMANA[new Date(`${hoje}T12:00:00`).getDay()]}, ${hoje}.`;
+}
+
+export async function extrairGastos(texto: string): Promise<GastoExtraido[]> {
+  const extrator = extratorAtivo();
+  if (extrator === "simples") return extrairSemIA(texto);
+  if (extrator === "groq") {
+    try {
+      return await extrairComGroq(texto);
+    } catch (erro) {
+      // Groq fora do ar ou limite do plano grátis: não perde o gasto, usa o extrator simples
+      console.warn("Groq falhou, usando o extrator simples:", erro instanceof Error ? erro.message : erro);
+      return extrairSemIA(texto);
+    }
+  }
+  return extrairComClaude(texto);
+}
+
+async function extrairComClaude(texto: string): Promise<GastoExtraido[]> {
+  cliente ??= new Anthropic();
 
   const resposta = await cliente.beta.messages.create({
     model: process.env.CLAUDE_MODEL ?? "claude-opus-5-5",
@@ -72,13 +99,48 @@ export async function extrairGastos(texto: string): Promise<GastoExtraido[]> {
       effort: "low",
       format: { type: "json_schema", schema: SCHEMA },
     },
-    messages: [{ role: "user", content: `Hoje é ${diaSemana}, ${hoje}.\n\nMensagem: ${texto}` }],
+    messages: [{ role: "user", content: `${cabecalhoData()}\n\nMensagem: ${texto}` }],
   });
 
   if (resposta.stop_reason === "refusal") return [];
 
   const json = resposta.content.find((b) => b.type === "text")?.text;
   if (!json) throw new Error(`Resposta do Claude sem texto (stop_reason: ${resposta.stop_reason})`);
+  return Extracao.parse(JSON.parse(json)).gastos;
+}
+
+// ---------------------------------------------------------------------------
+// Groq (API compatível com a da OpenAI): grátis dentro dos limites do plano.
+
+async function extrairComGroq(texto: string): Promise<GastoExtraido[]> {
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${chaveGroq()}`, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000),
+    body: JSON.stringify({
+      model: process.env.GROQ_MODELO ?? "openai/gpt-oss-120b",
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `${SYSTEM}
+
+Responda SOMENTE com um JSON neste formato exato:
+{"gastos": [{"valor": 45.9, "descricao": "iFood", "categoria": "Alimentação", "pagamento": "credito", "data": "2026-01-31"}]}
+- categoria: exatamente uma de ${CATEGORIAS.map((c) => `"${c}"`).join(", ")}
+- pagamento: exatamente um de ${PAGAMENTOS.map((p) => `"${p}"`).join(", ")}
+- Corrija nomes conhecidos escritos errado pela transcrição de áudio (ex.: "Antropik" -> "Anthropic", "ifudi" -> "iFood").`,
+        },
+        { role: "user", content: `${cabecalhoData()}\n\nMensagem: ${texto}` },
+      ],
+    }),
+  });
+  if (!resp.ok) throw new Error(`Groq respondeu ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+
+  const dados = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
+  const json = dados.choices?.[0]?.message?.content;
+  if (!json) throw new Error("Resposta do Groq sem conteúdo");
   return Extracao.parse(JSON.parse(json)).gastos;
 }
 
@@ -133,7 +195,9 @@ function extrairSemIA(texto: string): GastoExtraido[] {
 
   const descricao = texto
     .replace(numero[0], " ")
+    .replace(/r\$/gi, " ")
     .split(/\s+/)
+    .map((p) => p.replace(/^[^\p{L}\d]+|[^\p{L}\d]+$/gu, "")) // tira pontuação das pontas (comum em áudio transcrito)
     .filter((p) => p && !PALAVRAS_IGNORADAS.has(p.toLowerCase()))
     .join(" ");
 
