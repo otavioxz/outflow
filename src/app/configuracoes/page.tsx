@@ -42,7 +42,7 @@ async function Configuracoes() {
     <div className="flex-1">
       <Cabecalho nome={usuario.nome} email={usuario.email} />
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:py-8">
+      <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6 sm:pt-8">
         <div>
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-4" />
