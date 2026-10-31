@@ -117,3 +117,37 @@
     @apply font-heading;
   }
 }
+
+/* Barra de rolagem fina e discreta (listas com rolagem interna) */
+@layer components {
+  .rolagem-fina::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .rolagem-fina::-webkit-scrollbar-track,
+  .rolagem-fina::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  .rolagem-fina::-webkit-scrollbar-button {
+    display: none;
+  }
+  .rolagem-fina::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: color-mix(in oklab, var(--foreground) 14%, transparent);
+  }
+  .rolagem-fina:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in oklab, var(--foreground) 28%, transparent);
+  }
+  .rolagem-fina::-webkit-scrollbar-thumb:active {
+    background-color: var(--primary);
+  }
+  /* Firefox não tem os seletores acima */
+  @supports not selector(::-webkit-scrollbar) {
+    .rolagem-fina {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
+    }
+  }
+}

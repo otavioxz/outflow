@@ -24,7 +24,7 @@ function Dica({ active, payload, rotulo }: DadosTooltip & { rotulo: (p: Record<s
 
 export function GraficoCategorias({ dados }: { dados: { categoria: string; total: number }[] }) {
   return (
-    <ResponsiveContainer width="100%" height={dados.length * 36 + 28}>
+    <ResponsiveContainer width="100%" height={dados.length * 30 + 28}>
       <BarChart data={dados} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }} barCategoryGap={4}>
         <CartesianGrid horizontal={false} stroke="var(--border)" />
         <XAxis type="number" tickFormatter={reaisCurto} tick={eixo} axisLine={false} tickLine={false} />
@@ -33,7 +33,7 @@ export function GraficoCategorias({ dados }: { dados: { categoria: string; total
           cursor={{ fill: "var(--accent)" }}
           content={(p) => <Dica {...(p as DadosTooltip)} rotulo={(d) => String(d.categoria)} />}
         />
-        <Bar dataKey="total" fill="var(--chart-1)" radius={[0, 4, 4, 0]} maxBarSize={24} />
+        <Bar dataKey="total" fill="var(--chart-1)" radius={[0, 4, 4, 0]} maxBarSize={20} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -41,7 +41,7 @@ export function GraficoCategorias({ dados }: { dados: { categoria: string; total
 
 export function GraficoDiario({ dados }: { dados: { dia: number; total: number }[] }) {
   return (
-    <ResponsiveContainer width="100%" height={240}>
+    <ResponsiveContainer width="100%" height={200}>
       <BarChart data={dados} margin={{ top: 8, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
         <CartesianGrid vertical={false} stroke="var(--border)" />
         <XAxis

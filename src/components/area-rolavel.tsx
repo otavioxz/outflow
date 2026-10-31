@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,13 +10,15 @@ import { cn } from "@/lib/utils";
 export function AreaRolavel({
   children,
   className,
-  alturaMinima = 180, // cabeçalho + ~3 linhas
+  alturaMinima = 140, // cabeçalho + ~2 linhas
 }: {
   children: React.ReactNode;
   className?: string;
   alturaMinima?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // há mais itens abaixo? mostra um esmaecido no pé da lista
+  const [temMais, setTemMais] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -26,6 +28,7 @@ export function AreaRolavel({
     const ajustar = () => {
       if (!desktop.matches) {
         el.style.maxHeight = "";
+        conferirFim();
         return;
       }
       const topo = el.getBoundingClientRect().top + window.scrollY;
@@ -36,23 +39,34 @@ export function AreaRolavel({
         (cartao ? cartao.getBoundingClientRect().bottom - el.getBoundingClientRect().bottom : 0) + (rodape?.offsetHeight ?? 0);
       const livre = Math.floor(window.innerHeight - topo - depois);
       el.style.maxHeight = `${Math.max(livre, alturaMinima)}px`;
+      conferirFim();
     };
+    const conferirFim = () => setTemMais(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
 
     ajustar();
     const observador = new ResizeObserver(ajustar);
     observador.observe(document.body);
     window.addEventListener("resize", ajustar);
+    el.addEventListener("scroll", conferirFim, { passive: true });
     desktop.addEventListener("change", ajustar);
     return () => {
       observador.disconnect();
       window.removeEventListener("resize", ajustar);
+      el.removeEventListener("scroll", conferirFim);
       desktop.removeEventListener("change", ajustar);
     };
   }, [alturaMinima]);
 
   return (
-    <div ref={ref} className={cn("overflow-y-auto overscroll-contain", className)}>
+    <div ref={ref} className={cn("rolagem-fina overflow-y-auto overscroll-contain", className)}>
       {children}
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none sticky bottom-0 -mt-12 h-12 bg-linear-to-t from-card to-transparent transition-opacity duration-300",
+          temMais ? "opacity-100" : "opacity-0",
+        )}
+      />
     </div>
   );
 }

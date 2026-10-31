@@ -196,7 +196,7 @@ async function Painel({ searchParams }: Props) {
                 {/* a rolagem fica aqui dentro (com o cabeçalho fixo), não na página */}
                 <AreaRolavel>
                   <Table containerClassName="overflow-visible">
-                    <TableHeader className="sticky top-0 z-10 bg-card">
+                    <TableHeader className="sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--border)]">
                       <TableRow>
                         <TableHead className="w-16 pl-4 sm:pl-2">Data</TableHead>
                         <TableHead>Descrição</TableHead>
