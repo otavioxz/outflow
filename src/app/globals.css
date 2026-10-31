@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* O modo escuro segue o sistema operacional */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  --background: oklch(0.985 0.002 158);
+  --foreground: oklch(0.17 0.01 158);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0.01 158);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0.01 158);
+  /* verde da marca (logo #02e065), escurecido no modo claro para ter contraste */
+  --primary: oklch(0.5 0.14 152);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.96 0.004 158);
+  --secondary-foreground: oklch(0.25 0.01 158);
+  --muted: oklch(0.96 0.004 158);
+  --muted-foreground: oklch(0.5 0.01 158);
+  --accent: oklch(0.95 0.008 158);
+  --accent-foreground: oklch(0.25 0.01 158);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.91 0.005 158);
+  --input: oklch(0.91 0.005 158);
+  --ring: oklch(0.62 0.14 152);
+  /* gráficos: azul com contraste validado no fundo claro */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --success: oklch(0.5 0.13 150);
+  --warning: oklch(0.62 0.15 70);
+  --radius: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.16 0.004 158);
+    --foreground: oklch(0.97 0.003 158);
+    --card: oklch(0.2 0.005 158);
+    --card-foreground: oklch(0.97 0.003 158);
+    --popover: oklch(0.22 0.005 158);
+    --popover-foreground: oklch(0.97 0.003 158);
+    --primary: #02e065;
+    --primary-foreground: oklch(0.17 0.03 152);
+    --secondary: oklch(0.26 0.006 158);
+    --secondary-foreground: oklch(0.97 0.003 158);
+    --muted: oklch(0.26 0.006 158);
+    --muted-foreground: oklch(0.7 0.01 158);
+    --accent: oklch(0.27 0.008 158);
+    --accent-foreground: oklch(0.97 0.003 158);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.6 0.16 152);
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
+    --chart-5: #d55181;
+    --success: oklch(0.72 0.16 150);
+    --warning: oklch(0.8 0.15 80);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
+}
