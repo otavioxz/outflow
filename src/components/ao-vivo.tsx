@@ -91,7 +91,7 @@ export function AoVivo() {
       <span aria-hidden className="relative flex size-2">
         {/* onda que se expande a partir da bolinha enquanto está conectado */}
         {estado !== "offline" && (
-          <span className="absolute inline-flex size-full rounded-full bg-success opacity-60 motion-safe:animate-ping" />
+          <span className="absolute inline-flex size-full rounded-full bg-success opacity-60 animate-ping" />
         )}
         <span
           className={cn(
