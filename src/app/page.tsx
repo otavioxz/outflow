@@ -3,9 +3,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AoVivo } from "@/components/ao-vivo";
+import { Cabecalho } from "@/components/cabecalho";
 import { GraficoCategorias, GraficoDiario } from "@/components/graficos";
-import { Marca } from "@/components/marca";
-import { MenuUsuario } from "@/components/menu-usuario";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirUsuario } from "@/lib/auth";
 import { NOME_PAGAMENTO, formatarReais, hojeISO } from "@/lib/categorias";
+import { obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { gastosDoMes, totalDoMes } from "@/lib/gastos";
 import { cn } from "@/lib/utils";
 import { apagarGastoAction } from "./actions";
@@ -42,7 +42,7 @@ async function Painel({ searchParams }: Props) {
   const mesAnterior = deslocarMes(mes, -1);
   const proximoMes = deslocarMes(mes, 1);
 
-  const [gastos, totalAnterior] = await Promise.all([gastosDoMes(mes), totalDoMes(mesAnterior)]);
+  const [gastos, totalAnterior, orcamento] = await Promise.all([gastosDoMes(mes), totalDoMes(mesAnterior), obterOrcamentoCentavos()]);
 
   const total = gastos.reduce((s, g) => s + g.valor_centavos, 0);
   const [ano, m] = mes.split("-").map(Number);
@@ -58,7 +58,6 @@ async function Painel({ searchParams }: Props) {
   const porDia = Array.from({ length: diasNoMes }, (_, i) => ({ dia: i + 1, total: 0 }));
   for (const g of gastos) porDia[Number(g.data.slice(8, 10)) - 1].total += g.valor_centavos;
 
-  const orcamento = Number(process.env.ORCAMENTO_MENSAL) * 100 || 0;
   const pctOrcamento = orcamento ? Math.round((total / orcamento) * 100) : 0;
   const delta = totalAnterior ? Math.round(((total - totalAnterior) / totalAnterior) * 100) : null;
 
@@ -68,12 +67,7 @@ async function Painel({ searchParams }: Props) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-          <Marca />
-          <MenuUsuario nome={usuario.nome} email={usuario.email} />
-        </div>
-      </header>
+      <Cabecalho nome={usuario.nome} email={usuario.email} />
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -115,7 +109,7 @@ async function Painel({ searchParams }: Props) {
                 <BarraOrcamento pct={pctOrcamento} orcamento={orcamento} total={total} />
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Defina <code className="rounded bg-muted px-1 py-0.5">ORCAMENTO_MENSAL</code> no .env para acompanhar o orçamento.
+                  <Link href="/configuracoes" className="font-medium text-foreground underline underline-offset-4">Defina um orçamento mensal</Link> para acompanhar quanto ainda pode gastar.
                 </p>
               )}
             </CardContent>

@@ -121,3 +121,26 @@ export async function removerUsuario(email: string): Promise<boolean> {
   await db.execute({ sql: `DELETE FROM sessoes WHERE usuario_id = ?`, args: [r.rows[0].id] });
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Sessões de um usuário (página de configurações)
+
+/** Quantas sessões válidas o usuário tem além da atual. */
+export async function contarOutrasSessoes(usuarioId: number, tokenAtual: string): Promise<number> {
+  const db = await prepararDb();
+  const r = await db.execute({
+    sql: `SELECT COUNT(*) AS n FROM sessoes WHERE usuario_id = ? AND token_hash <> ? AND expira_em > ?`,
+    args: [usuarioId, hashToken(tokenAtual), new Date().toISOString()],
+  });
+  return Number(r.rows[0].n);
+}
+
+/** Encerra todas as sessões do usuário, menos a atual. Retorna quantas foram encerradas. */
+export async function encerrarOutrasSessoes(usuarioId: number, tokenAtual: string): Promise<number> {
+  const db = await prepararDb();
+  const r = await db.execute({
+    sql: `DELETE FROM sessoes WHERE usuario_id = ? AND token_hash <> ?`,
+    args: [usuarioId, hashToken(tokenAtual)],
+  });
+  return r.rowsAffected;
+}

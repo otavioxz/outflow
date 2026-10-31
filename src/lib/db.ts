@@ -42,6 +42,24 @@ export async function prepararDb(): Promise<Client> {
           senha_hash TEXT NOT NULL,
           criado_em TEXT NOT NULL DEFAULT (datetime('now'))
         )`,
+        // Configurações editáveis pelo painel (ex.: orçamento mensal)
+        `CREATE TABLE IF NOT EXISTS configuracoes (
+          chave TEXT PRIMARY KEY,
+          valor TEXT,
+          atualizado_em TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+        // Andamento de cada mensagem do WhatsApp (o painel mostra "processando" e o resultado)
+        `CREATE TABLE IF NOT EXISTS atividades (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          mensagem_id TEXT UNIQUE,
+          origem TEXT NOT NULL,
+          status TEXT NOT NULL,
+          titulo TEXT NOT NULL,
+          detalhe TEXT,
+          criada_em INTEGER NOT NULL,
+          atualizada_em INTEGER NOT NULL
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_atividades_atualizada ON atividades(atualizada_em)`,
         // Limite de tentativas de login (fica no banco para valer mesmo com o servidor reiniciando)
         `CREATE TABLE IF NOT EXISTS tentativas_login (
           chave TEXT PRIMARY KEY,

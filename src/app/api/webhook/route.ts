@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { processarMensagem, type Resultado } from "@/lib/bot";
+import { concluirAtividade, iniciarAtividade, type StatusAtividade } from "@/lib/atividades";
 import { marcarMensagemProcessada } from "@/lib/gastos";
 import { mascararTelefone, registrarEvento, type Evento } from "@/lib/log-discord";
 import { ipDe } from "@/lib/requisicao";
@@ -84,10 +85,17 @@ export async function POST(request: Request) {
     }
     if (!(await marcarMensagemProcessada(msg.id))) continue; // reenvio da Meta
 
+    // O painel aberto mostra "processando…" enquanto transcreve/interpreta
+    const atividade = await iniciarAtividade(msg.id, msg.type === "audio" ? "audio" : msg.type === "text" ? "texto" : "outro").catch(
+      () => null, // o aviso na tela é um extra: se falhar, o gasto continua sendo registrado
+    );
+
     let resultado: Resultado;
+    let falhou = false;
     try {
       resultado = await processarMensagem(msg);
     } catch (erro) {
+      falhou = true;
       console.error("Erro ao processar mensagem:", erro);
       const motivo = erro instanceof Error ? erro.message : String(erro);
       after(() =>
@@ -100,6 +108,13 @@ export async function POST(request: Request) {
       resultado = { tipo: "sem_gasto", origem: "texto", resposta: "😕 Tive um problema para registrar isso. Tente de novo em instantes." };
     }
 
+    if (atividade !== null) {
+      const [status, titulo, detalhe] = falhou
+        ? (["erro", "Erro ao registrar a mensagem", "Tente de novo em instantes."] as const)
+        : resumoParaPainel(resultado);
+      await concluirAtividade(atividade, status, titulo, detalhe).catch(() => {});
+    }
+
     // O resultado sempre vai para o Discord; a resposta no WhatsApp só se RESPONDER_NO_WHATSAPP=true
     after(() => registrarEvento(eventoDoResultado(resultado, msg.from)));
     if (process.env.RESPONDER_NO_WHATSAPP === "true") await enviarTexto(msg.from, resultado.resposta);
@@ -108,6 +123,23 @@ export async function POST(request: Request) {
 
   // A Meta ignora o corpo da resposta; no modo simulação devolvemos as respostas para o simulador
   return Response.json(modoSimulacao() ? { respostas } : { ok: true });
+}
+
+/** Título e detalhe curtos do aviso que aparece no painel. */
+function resumoParaPainel(r: Resultado): [Exclude<StatusAtividade, "processando">, string, string | undefined] {
+  const limpar = (s: string) => s.replace(/\*/g, "").trim();
+  switch (r.tipo) {
+    case "gasto": {
+      const itens = r.resposta.split("\n").filter((l) => l.startsWith("✅")).map((l) => limpar(l.replace(/^✅\s*/, "")));
+      return ["gasto", itens.length > 1 ? `${itens.length} gastos registrados` : "Gasto registrado", itens.join("\n")];
+    }
+    case "comando":
+      return ["comando", `Comando recebido: ${r.comando}`, r.comando === "desfazer" ? limpar(r.resposta) : undefined];
+    case "sem_gasto":
+      return ["sem_gasto", "Não encontrei um gasto na mensagem", r.texto ? `“${r.texto}”` : limpar(r.resposta)];
+    case "ignorada":
+      return ["sem_gasto", "Mensagem não processada", limpar(r.resposta)];
+  }
 }
 
 function eventoDoResultado(r: Resultado, de: string): Evento {

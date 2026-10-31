@@ -1,4 +1,5 @@
 import { NOME_PAGAMENTO, formatarReais, hojeISO } from "./categorias";
+import { obterOrcamentoCentavos } from "./configuracoes";
 import { extrairGastos } from "./extrator";
 import { desfazerUltimo, inserirGastos, totaisPorCategoria, totalDoMes } from "./gastos";
 import { transcreverAudio, transcricaoConfigurada } from "./transcricao";
@@ -80,7 +81,7 @@ export async function processarMensagem(msg: MensagemWhatsApp): Promise<Resultad
 
   const mes = hojeISO().slice(0, 7);
   const total = await totalDoMes(mes);
-  linhas.push("", `📊 Total do mês: ${formatarReais(total)}${linhaOrcamento(total)}`);
+  linhas.push("", `📊 Total do mês: ${formatarReais(total)}${await linhaOrcamento(total)}`);
   if (origem === "audio") linhas.push(`🎤 "${texto}"`);
   return { tipo: "gasto", texto, origem, resposta: linhas.join("\n") };
 }
@@ -96,7 +97,7 @@ async function resumoDoMes(): Promise<string> {
     "",
     ...porCategoria.map((c) => `• ${c.categoria}: ${formatarReais(c.total)}`),
     "",
-    `*Total: ${formatarReais(total)}*${linhaOrcamento(total)}`,
+    `*Total: ${formatarReais(total)}*${await linhaOrcamento(total)}`,
   ].join("\n");
 }
 
@@ -106,9 +107,10 @@ async function desfazer(): Promise<string> {
   return `🗑️ Apaguei: ${formatarReais(g.valor_centavos)}, ${g.descricao} (${g.categoria})`;
 }
 
-function linhaOrcamento(totalCentavos: number): string {
-  const orcamento = Number(process.env.ORCAMENTO_MENSAL);
-  if (!orcamento) return "";
+async function linhaOrcamento(totalCentavos: number): Promise<string> {
+  const orcamentoCentavos = await obterOrcamentoCentavos();
+  if (!orcamentoCentavos) return "";
+  const orcamento = orcamentoCentavos / 100;
   const pct = Math.round((totalCentavos / 100 / orcamento) * 100);
   const alerta = pct >= 100 ? " 🚨" : pct >= 80 ? " ⚠️" : "";
   return `\n💰 ${pct}% do orçamento de ${formatarReais(orcamento * 100)}${alerta}`;

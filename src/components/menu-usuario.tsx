@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { sair } from "@/app/login/actions";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ function iniciais(nome: string) {
 }
 
 export function MenuUsuario({ nome, email }: { nome: string; email: string }) {
+  const router = useRouter();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -39,6 +41,10 @@ export function MenuUsuario({ nome, email }: { nome: string; email: string }) {
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => router.push("/configuracoes")}>
+          <Settings />
+          Configurações
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => sair()}>
           <LogOut />
           Sair
