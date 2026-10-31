@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.outflow",
+        "sha256_cert_fingerprints": ["70:65:04:30:1E:B2:03:81:97:97:F9:ED:A4:6C:3F:47:40:11:83:C3:80:8D:94:93:8E:9A:A3:F8:2E:94:72:37"]
+      }
+    }]
