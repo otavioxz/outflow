@@ -42,7 +42,7 @@ next-env.d.ts
 
 !.env.example
 .claude
-.PRODUCT.md
+PRODUCT.md
 
 # banco local
 financas.db*
