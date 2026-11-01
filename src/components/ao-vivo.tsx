@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Atividade } from "@/lib/atividades";
+import { hojeISO } from "@/lib/categorias";
 import { cn } from "@/lib/utils";
 
 const INTERVALO_MS = 2000;
@@ -23,9 +24,15 @@ function avisar(a: Atividade) {
  * Mantém o dashboard em tempo real: consulta /api/versao periodicamente e,
  * quando os dados mudam, re-renderiza a página no servidor sem recarregar (router.refresh).
  * Pausa enquanto a aba está em segundo plano e checa na hora quando você volta.
+ * Também re-renderiza quando o dia vira (ex.: app reaberto no dia seguinte), para mostrar o mês/dia atual.
+ * `hoje` é a data (YYYY-MM-DD) com que o servidor renderizou a página.
  */
-export function AoVivo() {
+export function AoVivo({ hoje }: { hoje: string }) {
   const router = useRouter();
+  const diaRenderizado = useRef(hoje);
+  useEffect(() => {
+    diaRenderizado.current = hoje;
+  }, [hoje]);
   const versao = useRef<string | null>(null);
   const vistas = useRef<Map<number, string> | null>(null); // id da atividade -> último status mostrado
   const [estado, setEstado] = useState<"ok" | "offline" | "atualizado">("ok");
@@ -37,6 +44,10 @@ export function AoVivo() {
     async function checar() {
       clearTimeout(timer);
       if (document.visibilityState === "visible") {
+        if (hojeISO() !== diaRenderizado.current) {
+          diaRenderizado.current = hojeISO(); // evita refresh repetido enquanto o novo render não chega
+          router.refresh();
+        }
         try {
           const resp = await fetch("/api/versao", { cache: "no-store" });
           if (resp.status === 401) {

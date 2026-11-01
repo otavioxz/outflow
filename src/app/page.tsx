@@ -95,7 +95,7 @@ async function Painel({ searchParams }: Props) {
                 Voltar para hoje
               </Link>
             )}
-            <AoVivo />
+            <AoVivo hoje={hojeISO()} />
           </div>
         </div>
 
