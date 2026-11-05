@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { AlertCircle, Loader2, LogIn, Terminal } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { entrar, type EstadoLogin } from "./actions";
 
-export function FormLogin({ semUsuarios }: { semUsuarios: boolean }) {
+export function FormLogin({ semUsuarios, cadastroAberto }: { semUsuarios: boolean; cadastroAberto: boolean }) {
   const [estado, acao, enviando] = useActionState<EstadoLogin, FormData>(entrar, {});
 
   return (
@@ -61,6 +62,14 @@ export function FormLogin({ semUsuarios }: { semUsuarios: boolean }) {
         {enviando ? <Loader2 className="animate-spin" /> : <LogIn />}
         {enviando ? "Entrando…" : "Entrar"}
       </Button>
+      {cadastroAberto && (
+        <p className="text-center text-sm text-muted-foreground">
+          Recebeu um convite?{" "}
+          <Link href="/cadastro" className="font-medium text-foreground underline underline-offset-4">
+            Criar conta
+          </Link>
+        </p>
+      )}
     </form>
   );
 }

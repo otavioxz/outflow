@@ -27,7 +27,7 @@ const { prepararDb } = await import("../src/lib/db");
 const remoto = await prepararDb();
 
 // Sessões e tentativas de login não são copiadas: você só precisa entrar de novo no site.
-const TABELAS = ["usuarios", "gastos", "mensagens_processadas"];
+const TABELAS = ["usuarios", "gastos", "guardados", "configuracoes", "configuracoes_usuario", "mensagens_processadas"];
 
 for (const tabela of TABELAS) {
   const { rows, columns } = await local.execute(`SELECT * FROM ${tabela}`);

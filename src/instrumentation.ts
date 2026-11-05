@@ -9,9 +9,8 @@ function verificarConfiguracao(): { erros: string[]; avisos: string[] } {
   if (!e.VERIFY_TOKEN || e.VERIFY_TOKEN === "invente-uma-senha-aqui" || e.VERIFY_TOKEN.length < 16)
     erros.push("VERIFY_TOKEN ausente, padrão ou curto demais (use 16+ caracteres aleatórios)");
   if (e.WHATSAPP_TOKEN && !e.APP_SECRET) erros.push("APP_SECRET ausente: o webhook vai recusar tudo");
-  const numeros = (e.MEU_NUMERO ?? "").split(",").map((n) => n.replace(/\D/g, "")).filter(Boolean);
-  if (numeros.length === 0 || numeros.includes("5511999999999"))
-    erros.push("MEU_NUMERO ausente ou com o valor de exemplo: nenhuma mensagem será aceita");
+  if (e.CODIGO_CONVITE && e.CODIGO_CONVITE.length < 8)
+    erros.push("CODIGO_CONVITE curto demais: qualquer um poderia adivinhar e criar uma conta (use 8+ caracteres)");
   if (!e.DATABASE_URL || e.DATABASE_URL.startsWith("file:")) {
     if (e.VERCEL) erros.push("DATABASE_URL ausente ou arquivo local: na Vercel o disco é só leitura. Configure o Turso (libsql://...).");
     else avisos.push("DATABASE_URL é um arquivo local: em hospedagens serverless (Vercel) os dados se perdem. Use o Turso.");

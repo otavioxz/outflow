@@ -14,7 +14,7 @@ export async function apagarGastoAction(formData: FormData) {
   const id = Number(formData.get("id"));
   if (!Number.isInteger(id) || id <= 0) return;
 
-  const apagado = await apagarGasto(id);
+  const apagado = await apagarGasto(usuario.id, id);
   if (apagado) {
     const ctx = await contextoRequisicao();
     after(() =>
@@ -37,7 +37,7 @@ export async function apagarGuardadoAction(formData: FormData) {
   const id = Number(formData.get("id"));
   if (!Number.isInteger(id) || id <= 0) return;
 
-  const apagado = await apagarGuardado(id);
+  const apagado = await apagarGuardado(usuario.id, id);
   if (apagado) {
     const ctx = await contextoRequisicao();
     after(() =>

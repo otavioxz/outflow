@@ -1,15 +1,16 @@
 import { after } from "next/server";
-import { processarMensagem, type Resultado } from "@/lib/bot";
+import { processarMensagem, processarVinculo, type Resultado } from "@/lib/bot";
 import { concluirAtividade, iniciarAtividade, type StatusAtividade } from "@/lib/atividades";
 import { marcarMensagemProcessada } from "@/lib/gastos";
 import { mascararTelefone, registrarEvento, type Evento } from "@/lib/log-discord";
 import { ipDe } from "@/lib/requisicao";
+import { usuarioPorTelefone } from "@/lib/usuarios";
+import { PADRAO_VINCULAR } from "@/lib/vinculo";
 import {
   assinaturaValida,
   enviarTexto,
   extrairMensagens,
   modoSimulacao,
-  remetentePermitido,
   segredoConfere,
   type WebhookPayload,
 } from "@/lib/whatsapp";
@@ -72,29 +73,47 @@ export async function POST(request: Request) {
   for (const msg of extrairMensagens(payload)) {
     if (typeof msg?.id !== "string" || typeof msg?.from !== "string") continue;
 
-    if (!remetentePermitido(msg.from)) {
+    if (!(await marcarMensagemProcessada(msg.id))) continue; // reenvio da Meta
+
+    const usuario = await usuarioPorTelefone(msg.from);
+    const codigo = msg.type === "text" ? msg.text?.body.match(PADRAO_VINCULAR)?.[1] : undefined;
+
+    // Número ainda sem conta: só aceitamos o "vincular 123456" que liga o WhatsApp a uma conta do site
+    if (!usuario) {
+      if (!codigo) {
+        after(() =>
+          registrarEvento({
+            titulo: "Mensagem de número não vinculado ignorada",
+            nivel: "alerta",
+            campos: { Número: mascararTelefone(msg.from), Tipo: msg.type },
+            agrupar: `numero:${msg.from}`,
+          }),
+        );
+        continue;
+      }
+      const vinculo = await processarVinculo(codigo, msg.from, msg.id);
       after(() =>
         registrarEvento({
-          titulo: "Mensagem de número não autorizado ignorada",
-          nivel: "alerta",
-          campos: { Número: mascararTelefone(msg.from), Tipo: msg.type },
-          agrupar: `numero:${msg.from}`,
+          titulo: vinculo.usuarioId ? "WhatsApp vinculado a uma conta" : "Tentativa de vínculo do WhatsApp recusada",
+          nivel: vinculo.usuarioId ? "sucesso" : "alerta",
+          campos: { Número: mascararTelefone(msg.from), Conta: vinculo.usuarioId ? `#${vinculo.usuarioId}` : undefined, Resultado: vinculo.resposta },
         }),
       );
+      if (process.env.RESPONDER_NO_WHATSAPP === "true") await enviarTexto(msg.from, vinculo.resposta);
+      respostas.push(vinculo.resposta);
       continue;
     }
-    if (!(await marcarMensagemProcessada(msg.id))) continue; // reenvio da Meta
 
     // O painel aberto mostra "processando…" enquanto transcreve/interpreta
     const origem = msg.type === "audio" ? "audio" : msg.type === "text" ? "texto" : msg.type === "image" || msg.type === "document" ? "nota" : "outro";
-    const atividade = await iniciarAtividade(msg.id, origem).catch(
+    const atividade = await iniciarAtividade(usuario.id, msg.id, origem).catch(
       () => null, // o aviso na tela é um extra: se falhar, o gasto continua sendo registrado
     );
 
     let resultado: Resultado;
     let falhou = false;
     try {
-      resultado = await processarMensagem(msg);
+      resultado = await processarMensagem(msg, usuario.id);
     } catch (erro) {
       falhou = true;
       console.error("Erro ao processar mensagem:", erro);
@@ -103,7 +122,7 @@ export async function POST(request: Request) {
         registrarEvento({
           titulo: "Erro ao processar mensagem do WhatsApp",
           nivel: "perigo",
-          campos: { De: mascararTelefone(msg.from), Mensagem: msg.text?.body ?? `(${msg.type})`, Erro: motivo.slice(0, 500) },
+          campos: { De: mascararTelefone(msg.from), Usuário: usuario.email, Mensagem: msg.text?.body ?? `(${msg.type})`, Erro: motivo.slice(0, 500) },
         }),
       );
       resultado = { tipo: "sem_gasto", origem: "texto", resposta: "😕 Tive um problema para registrar isso. Tente de novo em instantes." };
@@ -117,7 +136,7 @@ export async function POST(request: Request) {
     }
 
     // O resultado sempre vai para o Discord; a resposta no WhatsApp só se RESPONDER_NO_WHATSAPP=true
-    after(() => registrarEvento(eventoDoResultado(resultado, msg.from)));
+    after(() => registrarEvento(eventoDoResultado(resultado, msg.from, usuario.email)));
     if (process.env.RESPONDER_NO_WHATSAPP === "true") await enviarTexto(msg.from, resultado.resposta);
     respostas.push(resultado.resposta);
   }
@@ -155,7 +174,7 @@ function resumoParaPainel(r: Resultado): [Exclude<StatusAtividade, "processando"
   }
 }
 
-function eventoDoResultado(r: Resultado, de: string): Evento {
+function eventoDoResultado(r: Resultado, de: string, email: string): Evento {
   const titulos: Record<Resultado["tipo"], [string, Evento["nivel"]]> = {
     gasto: ["Lançamento registrado pelo WhatsApp", "sucesso"],
     comando: [`Comando do WhatsApp: ${r.comando ?? ""}`, "info"],
@@ -168,6 +187,7 @@ function eventoDoResultado(r: Resultado, de: string): Evento {
     nivel,
     campos: {
       De: mascararTelefone(de),
+      Usuário: email,
       Origem: r.origem === "audio" ? "áudio" : r.origem === "nota" ? "foto de nota fiscal" : "texto",
       Mensagem: r.texto,
       Resultado: r.resposta.replace(/\*/g, ""),

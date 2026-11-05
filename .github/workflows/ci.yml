@@ -1,0 +1,40 @@
+# Roda a cada push e pull request: confere os tipos, roda os testes (isolamento entre usuários,
+# vínculo do WhatsApp, migração do banco, extrator...) e garante que o build de produção passa.
+# Se algo falhar, o commit aparece com um X vermelho no GitHub antes de chegar aos usuários.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Tipos, testes e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Conferir tipos
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
+
+      - name: Build de produção
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1

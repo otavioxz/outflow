@@ -4,7 +4,8 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Cabecalho } from "@/components/cabecalho";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AoVivo } from "@/components/ao-vivo";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { exigirUsuario, tokenAtual } from "@/lib/auth";
@@ -12,8 +13,11 @@ import { formatarReais, hojeISO } from "@/lib/categorias";
 import { obterMetaGuardadoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { totalDoMes } from "@/lib/gastos";
 import { totalGuardadoNoMes } from "@/lib/guardados";
+import { mascararNumero } from "@/lib/telefone";
 import { contarOutrasSessoes } from "@/lib/usuarios";
-import { FormMetaGuardado, FormOrcamento, FormOutrasSessoes, FormSenha } from "./formularios";
+import { estadoWhatsapp } from "@/lib/vinculo";
+import { numeroDoBot } from "@/lib/whatsapp";
+import { FormMetaGuardado, FormOrcamento, FormOutrasSessoes, FormSenha, FormWhatsapp } from "./formularios";
 
 export const metadata: Metadata = { title: "Configurações · Outflow" };
 
@@ -30,13 +34,18 @@ async function Configuracoes() {
   const usuario = await exigirUsuario();
   const token = (await tokenAtual())!;
   const mes = hojeISO().slice(0, 7);
-  const [orcamento, gastoNoMes, meta, guardadoNoMes, outrasSessoes] = await Promise.all([
-    obterOrcamentoCentavos(),
-    totalDoMes(mes),
-    obterMetaGuardadoCentavos(),
-    totalGuardadoNoMes(mes),
+  const [orcamento, gastoNoMes, meta, guardadoNoMes, outrasSessoes, whatsapp, numeroBot] = await Promise.all([
+    obterOrcamentoCentavos(usuario.id),
+    totalDoMes(usuario.id, mes),
+    obterMetaGuardadoCentavos(usuario.id),
+    totalGuardadoNoMes(usuario.id, mes),
     contarOutrasSessoes(usuario.id, token),
+    estadoWhatsapp(usuario.id),
+    numeroDoBot(),
   ]);
+  const validoAte = whatsapp.expiraEm
+    ? new Date(whatsapp.expiraEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })
+    : null;
 
   // "3000,00" -> "3.000,00" para o campo
   const paraCampo = (centavos: number) => (centavos ? (centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "");
@@ -55,6 +64,27 @@ async function Configuracoes() {
           </Link>
           <h1 className="mt-2 text-2xl font-semibold">Configurações</h1>
         </div>
+
+        <Card id="whatsapp" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle>WhatsApp</CardTitle>
+            <CardDescription>O número de onde você manda gastos, áudios e notas fiscais para o Outflow.</CardDescription>
+            {whatsapp.codigo && (
+              <CardAction>
+                {/* enquanto espera a mensagem chegar, a tela se atualiza sozinha */}
+                <AoVivo hoje={hojeISO()} />
+              </CardAction>
+            )}
+          </CardHeader>
+          <CardContent>
+            <FormWhatsapp
+              telefone={whatsapp.telefone && mascararNumero(whatsapp.telefone)}
+              codigo={whatsapp.codigo}
+              validoAte={validoAte}
+              numeroBot={numeroBot}
+            />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -134,6 +164,7 @@ function Carregando() {
       <div className="h-14 border-b" />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-40" />
         <Skeleton className="h-48" />
         <Skeleton className="h-32" />
         <Skeleton className="h-72" />

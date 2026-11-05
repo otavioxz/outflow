@@ -13,8 +13,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Tudo exige login, menos a tela de login, a política de privacidade, a exclusão de dados, o webhook do WhatsApp (protegido pela assinatura da Meta),
+  // Tudo exige login, menos as telas de login e de cadastro, a política de privacidade, a exclusão de dados, o webhook do WhatsApp (protegido pela assinatura da Meta),
   // o registro de visitas (que também precisa registrar quem abre a tela de login)
   // e os arquivos estáticos (qualquer caminho com extensão: logo, ícones, robots.txt...)
-  matcher: ["/((?!login|privacidade|exclusao-de-dados|api/webhook|api/visita|_next/static|_next/image|.*\\.[a-z0-9]+$).*)"],
+  matcher: ["/((?!login|cadastro|privacidade|exclusao-de-dados|api/webhook|api/visita|_next/static|_next/image|.*\\.[a-z0-9]+$).*)"],
 };

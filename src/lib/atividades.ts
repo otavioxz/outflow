@@ -14,17 +14,17 @@ export type Atividade = {
 };
 
 /** Registra que uma mensagem chegou e está sendo processada. Retorna o id da atividade. */
-export async function iniciarAtividade(mensagemId: string, origem: Atividade["origem"]): Promise<number> {
+export async function iniciarAtividade(usuarioId: number, mensagemId: string, origem: Atividade["origem"]): Promise<number> {
   const db = await prepararDb();
   const agora = Date.now();
   const titulo =
     origem === "audio" ? "Áudio recebido, transcrevendo…" : origem === "nota" ? "Nota fiscal recebida, lendo…" : "Mensagem recebida, processando…";
   const r = await db.execute({
-    sql: `INSERT INTO atividades (mensagem_id, origem, status, titulo, criada_em, atualizada_em)
-          VALUES (?, ?, 'processando', ?, ?, ?)
+    sql: `INSERT INTO atividades (usuario_id, mensagem_id, origem, status, titulo, criada_em, atualizada_em)
+          VALUES (?, ?, ?, 'processando', ?, ?, ?)
           ON CONFLICT(mensagem_id) DO UPDATE SET atualizada_em = excluded.atualizada_em
           RETURNING id`,
-    args: [mensagemId, origem, titulo, agora, agora],
+    args: [usuarioId, mensagemId, origem, titulo, agora, agora],
   });
   // limpeza ocasional: o painel só precisa dos últimos minutos
   if (Math.random() < 0.1) {
@@ -41,13 +41,13 @@ export async function concluirAtividade(id: number, status: Exclude<StatusAtivid
   });
 }
 
-/** Atividades alteradas nos últimos `janelaMs` (o painel compara com o que já mostrou). */
-export async function atividadesRecentes(janelaMs = 2 * 60 * 1000): Promise<Atividade[]> {
+/** Atividades do usuário alteradas nos últimos `janelaMs` (o painel compara com o que já mostrou). */
+export async function atividadesRecentes(usuarioId: number, janelaMs = 2 * 60 * 1000): Promise<Atividade[]> {
   const db = await prepararDb();
   const r = await db.execute({
     sql: `SELECT id, origem, status, titulo, detalhe, atualizada_em FROM atividades
-          WHERE atualizada_em > ? ORDER BY id DESC LIMIT 10`,
-    args: [Date.now() - janelaMs],
+          WHERE usuario_id = ? AND atualizada_em > ? ORDER BY id DESC LIMIT 10`,
+    args: [usuarioId, Date.now() - janelaMs],
   });
   return r.rows.map((l) => ({
     id: Number(l.id),

@@ -9,7 +9,8 @@
     "simular": "tsx scripts/simular.mts",
     "typecheck": "tsc --noEmit",
     "usuario": "tsx scripts/usuario.mts",
-    "migrar": "tsx scripts/migrar-para-turso.mts"
+    "migrar": "tsx scripts/migrar-para-turso.mts",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

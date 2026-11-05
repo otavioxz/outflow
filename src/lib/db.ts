@@ -1,4 +1,5 @@
 import { createClient, type Client } from "@libsql/client";
+import { normalizarNumero } from "./telefone";
 
 // Local: arquivo SQLite. Na nuvem: URL do Turso (libsql://...) + DATABASE_AUTH_TOKEN.
 const globalDb = globalThis as unknown as { _db?: Client; _dbPronto?: Promise<void> };
@@ -11,14 +12,73 @@ export function db(): Client {
   return globalDb._db;
 }
 
+async function adicionarColuna(tabela: string, coluna: string, tipo: string): Promise<void> {
+  const colunas = await db().execute(`PRAGMA table_info(${tabela})`);
+  if (!colunas.rows.some((c) => c.name === coluna)) await db().execute(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${tipo}`);
+}
+
 /** Colunas adicionadas depois que as tabelas já existiam em produção (CREATE TABLE IF NOT EXISTS não as cria). */
 async function migrarColunas(): Promise<void> {
-  const colunas = await db().execute(`PRAGMA table_info(gastos)`);
-  if (!colunas.rows.some((c) => c.name === "chave_nota")) {
-    // Chave de acesso da nota fiscal: evita registrar a mesma nota duas vezes
-    await db().execute(`ALTER TABLE gastos ADD COLUMN chave_nota TEXT`);
+  // Chave de acesso da nota fiscal: evita registrar a mesma nota duas vezes
+  await adicionarColuna("gastos", "chave_nota", "TEXT");
+  // Multiusuário: cada lançamento tem dono, e o WhatsApp de cada usuário é ligado por um código
+  for (const tabela of ["gastos", "guardados", "atividades"]) await adicionarColuna(tabela, "usuario_id", "INTEGER");
+  await adicionarColuna("usuarios", "telefone", "TEXT");
+  await adicionarColuna("usuarios", "codigo_vinculo", "TEXT");
+  await adicionarColuna("usuarios", "codigo_expira_em", "INTEGER");
+
+  await db().batch(
+    [
+      `DROP INDEX IF EXISTS idx_gastos_chave_nota`, // versão antiga, sem o usuário
+      `CREATE INDEX IF NOT EXISTS idx_gastos_usuario_chave_nota ON gastos(usuario_id, chave_nota) WHERE chave_nota IS NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS idx_gastos_usuario_data ON gastos(usuario_id, data)`,
+      `CREATE INDEX IF NOT EXISTS idx_guardados_usuario_data ON guardados(usuario_id, data)`,
+      `CREATE INDEX IF NOT EXISTS idx_atividades_usuario ON atividades(usuario_id, atualizada_em)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_telefone ON usuarios(telefone) WHERE telefone IS NOT NULL`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_codigo ON usuarios(codigo_vinculo) WHERE codigo_vinculo IS NOT NULL`,
+    ],
+    "write",
+  );
+  await migrarParaMultiusuario();
+}
+
+/**
+ * Uma vez só: quando o app era de um usuário, nada tinha dono. Tudo o que já existe passa para o
+ * primeiro usuário cadastrado, junto com as configurações globais e o número de MEU_NUMERO.
+ */
+async function migrarParaMultiusuario(): Promise<void> {
+  const feita = await db().execute(`SELECT 1 FROM configuracoes WHERE chave = 'migracao_multiusuario'`);
+  if (feita.rows.length) return;
+  const dono = (await db().execute(`SELECT MIN(id) AS id FROM usuarios`)).rows[0]?.id;
+  if (dono == null) {
+    // Banco novo, sem dados antigos: nada a migrar
+    await db().execute(`INSERT OR IGNORE INTO configuracoes (chave, valor) VALUES ('migracao_multiusuario', 'sem dados')`);
+    return;
   }
-  await db().execute(`CREATE INDEX IF NOT EXISTS idx_gastos_chave_nota ON gastos(chave_nota) WHERE chave_nota IS NOT NULL`);
+
+  const telefone = normalizarNumero((process.env.MEU_NUMERO ?? "").split(",")[0]) || null;
+  const orcamento = Math.round(Number(process.env.ORCAMENTO_MENSAL) * 100) || 0;
+  await db().batch(
+    [
+      { sql: `UPDATE gastos SET usuario_id = ? WHERE usuario_id IS NULL`, args: [dono] },
+      { sql: `UPDATE guardados SET usuario_id = ? WHERE usuario_id IS NULL`, args: [dono] },
+      `DELETE FROM atividades WHERE usuario_id IS NULL`, // só avisos de poucos minutos: não vale migrar
+      {
+        sql: `INSERT OR IGNORE INTO configuracoes_usuario (usuario_id, chave, valor)
+              SELECT ?, chave, valor FROM configuracoes WHERE chave IN ('orcamento_centavos', 'meta_guardado_centavos')`,
+        args: [dono],
+      },
+      // Orçamento que vinha do .env (ORCAMENTO_MENSAL), se nunca foi salvo pelo painel
+      ...(orcamento
+        ? [{ sql: `INSERT OR IGNORE INTO configuracoes_usuario (usuario_id, chave, valor) VALUES (?, 'orcamento_centavos', ?)`, args: [dono, String(orcamento)] }]
+        : []),
+      ...(telefone
+        ? [{ sql: `UPDATE usuarios SET telefone = ? WHERE id = ? AND telefone IS NULL`, args: [telefone, dono] }]
+        : []),
+      `INSERT OR IGNORE INTO configuracoes (chave, valor) VALUES ('migracao_multiusuario', datetime('now'))`,
+    ],
+    "write",
+  );
 }
 
 /** Cria as tabelas na primeira vez que o app usa o banco. */
@@ -64,7 +124,15 @@ export async function prepararDb(): Promise<Client> {
           senha_hash TEXT NOT NULL,
           criado_em TEXT NOT NULL DEFAULT (datetime('now'))
         )`,
-        // Configurações editáveis pelo painel (ex.: orçamento mensal)
+        // Configurações de cada usuário, editáveis pelo painel (orçamento mensal, meta de guardar...)
+        `CREATE TABLE IF NOT EXISTS configuracoes_usuario (
+          usuario_id INTEGER NOT NULL,
+          chave TEXT NOT NULL,
+          valor TEXT,
+          atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (usuario_id, chave)
+        )`,
+        // Configurações do sistema (ex.: controle de migrações). Antes guardava também o orçamento.
         `CREATE TABLE IF NOT EXISTS configuracoes (
           chave TEXT PRIMARY KEY,
           valor TEXT,

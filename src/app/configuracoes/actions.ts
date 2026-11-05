@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { chavesLogin, definirCookieSessao, exigirUsuario, limparErros, minutosBloqueado, registrarErro, tokenAtual } from "@/lib/auth";
-import { formatarReais } from "@/lib/categorias";
+import { formatarReais, lerReais } from "@/lib/categorias";
 import {
   definirMetaGuardadoCentavos,
   definirOrcamentoCentavos,
@@ -12,19 +12,10 @@ import {
 } from "@/lib/configuracoes";
 import { registrarEvento } from "@/lib/log-discord";
 import { contextoRequisicao } from "@/lib/requisicao";
-import { autenticar, criarSessao, encerrarOutrasSessoes, trocarSenha } from "@/lib/usuarios";
+import { autenticar, criarSessao, encerrarOutrasSessoes, problemaNaSenha, trocarSenha } from "@/lib/usuarios";
+import { desvincularTelefone, gerarCodigoVinculo } from "@/lib/vinculo";
 
 export type Estado = { erro?: string; ok?: string };
-
-/** Converte "3.000,50", "R$ 3000", "3000.50" em centavos. null = inválido. */
-function lerReais(texto: string): number | null {
-  let t = texto.replace(/r\$|\s/gi, "");
-  if (!t) return 0;
-  if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");
-  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, ""); // "3.000" = três mil
-  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
-  return Math.round(Number(t) * 100);
-}
 
 export async function salvarOrcamento(_: Estado, formData: FormData): Promise<Estado> {
   const usuario = await exigirUsuario();
@@ -32,8 +23,8 @@ export async function salvarOrcamento(_: Estado, formData: FormData): Promise<Es
   if (centavos === null) return { erro: "Valor inválido. Use algo como 3.000,00." };
   if (centavos > 100_000_000_00) return { erro: "Valor alto demais." };
 
-  const anterior = await obterOrcamentoCentavos();
-  await definirOrcamentoCentavos(centavos);
+  const anterior = await obterOrcamentoCentavos(usuario.id);
+  await definirOrcamentoCentavos(usuario.id, centavos);
   revalidatePath("/");
   revalidatePath("/configuracoes");
 
@@ -54,8 +45,8 @@ export async function salvarMetaGuardado(_: Estado, formData: FormData): Promise
   if (centavos === null) return { erro: "Valor inválido. Use algo como 500,00." };
   if (centavos > 100_000_000_00) return { erro: "Valor alto demais." };
 
-  const anterior = await obterMetaGuardadoCentavos();
-  await definirMetaGuardadoCentavos(centavos);
+  const anterior = await obterMetaGuardadoCentavos(usuario.id);
+  await definirMetaGuardadoCentavos(usuario.id, centavos);
   revalidatePath("/");
   revalidatePath("/configuracoes");
 
@@ -92,9 +83,8 @@ export async function alterarSenha(_: Estado, formData: FormData): Promise<Estad
     );
     return { erro: "Senha atual incorreta." };
   }
-  if (nova.length < 12) return { erro: "A nova senha precisa ter pelo menos 12 caracteres." };
-  if (/^(.)\1+$/.test(nova) || /^(0?123456789|senha|password|qwerty)/i.test(nova))
-    return { erro: "Essa senha é fácil demais de adivinhar." };
+  const problema = problemaNaSenha(nova);
+  if (problema) return { erro: problema };
   if (nova === atual) return { erro: "A nova senha precisa ser diferente da atual." };
   if (nova !== confirmacao) return { erro: "A confirmação não confere com a nova senha." };
 
@@ -131,4 +121,27 @@ export async function encerrarOutrasSessoesAction(_: Estado): Promise<Estado> {
   );
   revalidatePath("/configuracoes");
   return { ok: encerradas ? `${encerradas} sessão(ões) encerrada(s).` : "Nenhuma outra sessão estava aberta." };
+}
+
+export async function gerarCodigoWhatsappAction(_: Estado): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  await gerarCodigoVinculo(usuario.id);
+  revalidatePath("/configuracoes");
+  return {};
+}
+
+export async function desvincularWhatsappAction(_: Estado): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  await desvincularTelefone(usuario.id);
+  const ctx = await contextoRequisicao();
+  after(() =>
+    registrarEvento({
+      titulo: "WhatsApp desvinculado pelo painel",
+      nivel: "info",
+      campos: { Usuário: usuario.email, IP: ctx.ip },
+    }),
+  );
+  revalidatePath("/configuracoes");
+  revalidatePath("/");
+  return { ok: "WhatsApp desvinculado. As mensagens desse número não serão mais registradas." };
 }

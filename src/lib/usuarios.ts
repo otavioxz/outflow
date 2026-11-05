@@ -1,10 +1,19 @@
 import crypto from "node:crypto";
 import { promisify } from "node:util";
 import { prepararDb } from "./db";
+import { normalizarNumero } from "./telefone";
 
 const scrypt = promisify(crypto.scrypt) as (senha: string, sal: Buffer, tamanho: number) => Promise<Buffer>;
 
 export const DURACAO_SESSAO_DIAS = 30;
+export const MIN_SENHA = 12;
+
+/** Motivo pelo qual a senha não serve (null = ok). Usado no cadastro e na troca de senha. */
+export function problemaNaSenha(senha: string): string | null {
+  if (senha.length < MIN_SENHA) return `A senha precisa ter pelo menos ${MIN_SENHA} caracteres.`;
+  if (/^(.)\1+$/.test(senha) || /^(0?123456789|senha|password|qwerty)/i.test(senha)) return "Essa senha é fácil demais de adivinhar.";
+  return null;
+}
 
 export type Usuario = { id: number; email: string; nome: string };
 
@@ -80,7 +89,7 @@ export async function encerrarSessao(token: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Gestão de usuários (usada pelo comando npm run usuario)
+// Gestão de usuários (cadastro pelo site e comando npm run usuario)
 
 export async function existeAlgumUsuario(): Promise<boolean> {
   const db = await prepararDb();
@@ -94,12 +103,31 @@ export async function listarUsuarios(): Promise<(Usuario & { criado_em: string }
   return r.rows.map((l) => ({ id: Number(l.id), email: String(l.email), nome: String(l.nome), criado_em: String(l.criado_em) }));
 }
 
-export async function adicionarUsuario(email: string, nome: string, senha: string): Promise<void> {
+/** Cria o usuário e retorna o id. Lança erro se o e-mail já existe (UNIQUE). */
+export async function adicionarUsuario(email: string, nome: string, senha: string): Promise<number> {
   const db = await prepararDb();
-  await db.execute({
-    sql: `INSERT INTO usuarios (email, nome, senha_hash) VALUES (?, ?, ?)`,
+  const r = await db.execute({
+    sql: `INSERT INTO usuarios (email, nome, senha_hash) VALUES (?, ?, ?) RETURNING id`,
     args: [email.trim(), nome.trim(), await gerarHashSenha(senha)],
   });
+  return Number(r.rows[0].id);
+}
+
+export async function emailCadastrado(email: string): Promise<boolean> {
+  const db = await prepararDb();
+  const r = await db.execute({ sql: `SELECT 1 FROM usuarios WHERE email = ?`, args: [email.trim()] });
+  return r.rows.length > 0;
+}
+
+/** Dono do WhatsApp que mandou a mensagem (null se o número não está vinculado a ninguém). */
+export async function usuarioPorTelefone(telefone: string): Promise<Usuario | null> {
+  const db = await prepararDb();
+  const r = await db.execute({
+    sql: `SELECT id, email, nome FROM usuarios WHERE telefone = ?`,
+    args: [normalizarNumero(telefone)],
+  });
+  const l = r.rows[0];
+  return l ? { id: Number(l.id), email: String(l.email), nome: String(l.nome) } : null;
 }
 
 /** Troca a senha e derruba todas as sessões abertas do usuário. */
@@ -114,11 +142,19 @@ export async function trocarSenha(email: string, senha: string): Promise<boolean
   return true;
 }
 
+/** Remove o usuário e todos os dados dele (lançamentos, configurações, sessões). */
 export async function removerUsuario(email: string): Promise<boolean> {
   const db = await prepararDb();
   const r = await db.execute({ sql: `DELETE FROM usuarios WHERE email = ? RETURNING id`, args: [email.trim()] });
   if (!r.rows[0]) return false;
-  await db.execute({ sql: `DELETE FROM sessoes WHERE usuario_id = ?`, args: [r.rows[0].id] });
+  const id = r.rows[0].id;
+  await db.batch(
+    ["sessoes", "gastos", "guardados", "atividades", "configuracoes_usuario"].map((tabela) => ({
+      sql: `DELETE FROM ${tabela} WHERE usuario_id = ?`,
+      args: [id],
+    })),
+    "write",
+  );
   return true;
 }
 

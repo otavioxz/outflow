@@ -6,6 +6,7 @@ import { AoVivo } from "@/components/ao-vivo";
 import { Cabecalho } from "@/components/cabecalho";
 import { GraficoCategorias, GraficoDiario } from "@/components/graficos";
 import { ListaLancamentos } from "@/components/lista-lancamentos";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import { NOME_PAGAMENTO, formatarReais, hojeISO } from "@/lib/categorias";
 import { obterMetaGuardadoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { gastosDoMes, totalDoMes } from "@/lib/gastos";
 import { guardadosDoMes } from "@/lib/guardados";
+import { estadoWhatsapp } from "@/lib/vinculo";
 import { cn } from "@/lib/utils";
 import { apagarGastoAction, apagarGuardadoAction } from "./actions";
 
@@ -44,12 +46,13 @@ async function Painel({ searchParams }: Props) {
   const mesAnterior = deslocarMes(mes, -1);
   const proximoMes = deslocarMes(mes, 1);
 
-  const [gastos, totalAnterior, orcamento, guardados, metaGuardado] = await Promise.all([
-    gastosDoMes(mes),
-    totalDoMes(mesAnterior),
-    obterOrcamentoCentavos(),
-    guardadosDoMes(mes),
-    obterMetaGuardadoCentavos(),
+  const [gastos, totalAnterior, orcamento, guardados, metaGuardado, whatsapp] = await Promise.all([
+    gastosDoMes(usuario.id, mes),
+    totalDoMes(usuario.id, mesAnterior),
+    obterOrcamentoCentavos(usuario.id),
+    guardadosDoMes(usuario.id, mes),
+    obterMetaGuardadoCentavos(usuario.id),
+    estadoWhatsapp(usuario.id),
   ]);
 
   const total = gastos.reduce((s, g) => s + g.valor_centavos, 0);
@@ -106,6 +109,21 @@ async function Painel({ searchParams }: Props) {
             <AoVivo hoje={hojeISO()} />
           </div>
         </div>
+
+        {!whatsapp.telefone && (
+          <Alert>
+            <MessageCircle />
+            <AlertTitle>Vincule seu WhatsApp</AlertTitle>
+            <AlertDescription>
+              <p>
+                Para registrar gastos por mensagem, áudio ou foto da nota, ligue seu número à conta.{" "}
+                <Link href="/configuracoes#whatsapp" className="font-medium text-foreground underline underline-offset-4">
+                  Vincular agora
+                </Link>
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
           <Card className="col-span-2">

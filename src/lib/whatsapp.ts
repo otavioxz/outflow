@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { numeroParaEnvio } from "./telefone";
 
 // Formato (simplificado) do corpo que a Meta envia ao webhook
 export type WebhookPayload = {
@@ -56,29 +57,23 @@ export function assinaturaValida(corpo: string, assinatura: string | null): bool
   return assinatura.length === esperado.length && crypto.timingSafeEqual(Buffer.from(assinatura), Buffer.from(esperado));
 }
 
-/**
- * Normaliza um número brasileiro para comparação: a Meta às vezes entrega celulares sem o 9º dígito
- * (5511988887777 vira 551188887777), então o removemos dos dois lados antes de comparar.
- */
-function normalizarNumero(numero: string): string {
-  const d = numero.replace(/\D/g, "");
-  return d.length === 13 && d.startsWith("55") && d[4] === "9" ? d.slice(0, 4) + d.slice(5) : d;
-}
+let numeroBot: Promise<string | null> | undefined;
 
-/** Só aceita mensagens dos números em MEU_NUMERO (um ou vários, separados por vírgula). */
-export function remetentePermitido(from: string): boolean {
-  const permitidos = (process.env.MEU_NUMERO ?? "").split(",").map(normalizarNumero).filter(Boolean);
-  if (permitidos.length === 0) return process.env.NODE_ENV !== "production"; // online, sem lista = ninguém
-  return permitidos.includes(normalizarNumero(from));
-}
-
-/**
- * A Meta entrega celulares brasileiros sem o 9º dígito (554788887777), mas responder para esse formato
- * falha com "131030 Recipient phone number not in allowed list". Recoloca o 9 antes de enviar.
- */
-export function numeroParaEnvio(numero: string): string {
-  const d = numero.replace(/\D/g, "");
-  return d.length === 12 && d.startsWith("55") && /[6-9]/.test(d[4]) ? d.slice(0, 4) + "9" + d.slice(4) : d;
+/** Número do WhatsApp do Outflow (o do PHONE_NUMBER_ID), só dígitos. null se não der para consultar. */
+export function numeroDoBot(): Promise<string | null> {
+  if (process.env.WHATSAPP_NUMERO_BOT) return Promise.resolve(process.env.WHATSAPP_NUMERO_BOT.replace(/\D/g, ""));
+  if (modoSimulacao() || !process.env.PHONE_NUMBER_ID) return Promise.resolve(null);
+  numeroBot ??= fetch(`${GRAPH()}/${process.env.PHONE_NUMBER_ID}?fields=display_phone_number`, {
+    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` },
+    signal: AbortSignal.timeout(3000),
+  })
+    .then(async (r) => (r.ok ? ((await r.json()) as { display_phone_number?: string }).display_phone_number?.replace(/\D/g, "") || null : null))
+    .catch(() => null)
+    .then((n) => {
+      if (!n) numeroBot = undefined; // falhou: tenta de novo na próxima vez
+      return n;
+    });
+  return numeroBot;
 }
 
 export async function enviarTexto(para: string, texto: string): Promise<void> {

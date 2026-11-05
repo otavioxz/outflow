@@ -1,12 +1,20 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { Copy, Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { alterarSenha, encerrarOutrasSessoesAction, salvarMetaGuardado, salvarOrcamento, type Estado } from "./actions";
+import {
+  alterarSenha,
+  desvincularWhatsappAction,
+  encerrarOutrasSessoesAction,
+  gerarCodigoWhatsappAction,
+  salvarMetaGuardado,
+  salvarOrcamento,
+  type Estado,
+} from "./actions";
 
 /** Mostra o resultado da ação: erro embaixo do formulário, sucesso como aviso no canto. */
 function useAvisos(estado: Estado) {
@@ -164,5 +172,92 @@ export function FormOutrasSessoes({ quantidade }: { quantidade: number }) {
         Sair dos outros dispositivos
       </BotaoEnviar>
     </form>
+  );
+}
+
+/**
+ * Vínculo do WhatsApp: mostra o código "vincular 482913" para o usuário mandar ao bot.
+ * Quando a mensagem chega, o painel (AoVivo, na página) se atualiza sozinho e mostra o número vinculado.
+ */
+export function FormWhatsapp({
+  telefone,
+  codigo,
+  validoAte,
+  numeroBot,
+}: {
+  telefone: string | null;
+  codigo: string | null;
+  validoAte: string | null;
+  numeroBot: string | null;
+}) {
+  const [estadoGerar, gerar, gerando] = useActionState(gerarCodigoWhatsappAction, {});
+  const [estadoDesvincular, desvincular, desvinculando] = useActionState(desvincularWhatsappAction, {});
+  useAvisos(estadoGerar);
+  useAvisos(estadoDesvincular);
+
+  if (codigo) {
+    const mensagem = `vincular ${codigo}`;
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Mande esta mensagem para o Outflow no WhatsApp{numeroBot ? <> (<span className="font-medium text-foreground tabular-nums">+{numeroBot}</span>)</> : null}{" "}
+          pelo número que você quer usar:
+        </p>
+        <code className="block rounded-lg bg-muted px-4 py-3 text-center font-mono text-2xl font-semibold tracking-wider">{mensagem}</code>
+        <div className="flex flex-wrap gap-2">
+          {numeroBot && (
+            <a
+              href={`https://wa.me/${numeroBot}?text=${encodeURIComponent(mensagem)}`}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants()}
+            >
+              <MessageCircle />
+              Abrir no WhatsApp
+            </a>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigator.clipboard.writeText(mensagem).then(() => toast.success("Mensagem copiada."))}
+          >
+            <Copy />
+            Copiar
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          O código vale até {validoAte} e só pode ser usado uma vez. Esta tela se atualiza sozinha quando a mensagem chegar.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        {telefone ? (
+          <>
+            Vinculado ao número <span className="font-medium text-foreground tabular-nums">{telefone}</span>. As mensagens desse
+            WhatsApp entram na sua conta.
+          </>
+        ) : (
+          "Nenhum WhatsApp vinculado. Gere um código e mande para o bot para começar a registrar gastos por mensagem."
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <form action={gerar}>
+          <BotaoEnviar enviando={gerando} variant={telefone ? "outline" : "default"}>
+            {telefone ? "Trocar número" : "Gerar código"}
+          </BotaoEnviar>
+        </form>
+        {telefone && (
+          <form action={desvincular}>
+            <BotaoEnviar enviando={desvinculando} variant="ghost">
+              Desvincular
+            </BotaoEnviar>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
