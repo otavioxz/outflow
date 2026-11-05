@@ -124,29 +124,9 @@ async function Painel({ searchParams }: Props) {
             </CardContent>
           </Card>
 
-          <Card className="col-span-2">
-            <CardHeader>
-              <CardDescription className="flex items-center gap-1.5">
-                <PiggyBank className="size-4" />
-                Guardado em {nomeMes}
-              </CardDescription>
-              <CardTitle className="text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">{formatarReais(totalGuardado)}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {metaGuardado ? (
-                <BarraMeta meta={metaGuardado} guardado={totalGuardado} />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Fica separado dos gastos.{" "}
-                  <Link href="/configuracoes" className="font-medium text-foreground underline underline-offset-4">Defina uma meta</Link> para acompanhar quanto falta guardar.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
-              <CardDescription>Média por dia</CardDescription>
+              <CardDescription>Gasto médio por dia</CardDescription>
               <CardTitle className="text-xl font-semibold tabular-nums sm:text-2xl">
                 {formatarReais(Math.round(total / Math.max(diasDecorridos, 1)))}
               </CardTitle>
@@ -158,7 +138,7 @@ async function Painel({ searchParams }: Props) {
 
           <Card>
             <CardHeader>
-              <CardDescription className="first-letter:uppercase">{nomeMesAnterior}</CardDescription>
+              <CardDescription>Gasto em {nomeMesAnterior}</CardDescription>
               <CardTitle className="text-xl font-semibold tabular-nums sm:text-2xl">{formatarReais(totalAnterior)}</CardTitle>
             </CardHeader>
             <CardContent className="text-sm">
@@ -169,6 +149,26 @@ async function Painel({ searchParams }: Props) {
                   {delta > 0 ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}
                   {Math.abs(delta)}% {delta > 0 ? "a mais" : "a menos"} em {nomeMes}
                 </span>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-2 bg-success/5 ring-success/25">
+            <CardHeader>
+              <CardDescription className="flex items-center gap-1.5 font-medium text-success">
+                <PiggyBank className="size-4" />
+                Guardado em {nomeMes}
+              </CardDescription>
+              <CardTitle className="text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">{formatarReais(totalGuardado)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {metaGuardado ? (
+                <BarraMeta meta={metaGuardado} guardado={totalGuardado} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Poupança, fora dos gastos.{" "}
+                  <Link href="/configuracoes" className="font-medium text-foreground underline underline-offset-4">Defina uma meta</Link> para acompanhar quanto falta guardar.
+                </p>
               )}
             </CardContent>
           </Card>

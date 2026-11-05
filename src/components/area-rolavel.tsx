@@ -58,7 +58,9 @@ export function AreaRolavel({
   }, [alturaMinima]);
 
   return (
-    <div ref={ref} className={cn("rolagem-fina overflow-y-auto overscroll-contain", className)}>
+    // overscroll-contain só no desktop: no celular a lista não rola por dentro, e com ele o
+    // navegador engolia o gesto de arrastar sobre a tabela em vez de rolar a página
+    <div ref={ref} className={cn("rolagem-fina overflow-y-auto lg:overscroll-contain", className)}>
       {children}
       <div
         aria-hidden
