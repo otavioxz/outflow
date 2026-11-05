@@ -17,6 +17,9 @@ export function problemaNaSenha(senha: string): string | null {
 
 export type Usuario = { id: number; email: string; nome: string };
 
+/** Usuário da sessão atual: inclui a versão da foto de perfil (null = sem foto, mostra as iniciais). */
+export type UsuarioLogado = Usuario & { fotoVersao: number | null };
+
 // ---------------------------------------------------------------------------
 // Senhas: scrypt com sal aleatório, guardado como "scrypt$<sal>$<hash>" (base64url)
 
@@ -72,15 +75,16 @@ export async function criarSessao(usuarioId: number): Promise<{ token: string; e
   return { token, expiraEm };
 }
 
-export async function usuarioDaSessao(token: string): Promise<Usuario | null> {
+export async function usuarioDaSessao(token: string): Promise<UsuarioLogado | null> {
   const db = await prepararDb();
   const r = await db.execute({
-    sql: `SELECT u.id, u.email, u.nome FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id
+    sql: `SELECT u.id, u.email, u.nome, u.foto_versao FROM sessoes s JOIN usuarios u ON u.id = s.usuario_id
           WHERE s.token_hash = ? AND s.expira_em > ?`,
     args: [hashToken(token), new Date().toISOString()],
   });
   const l = r.rows[0];
-  return l ? { id: Number(l.id), email: String(l.email), nome: String(l.nome) } : null;
+  if (!l) return null;
+  return { id: Number(l.id), email: String(l.email), nome: String(l.nome), fotoVersao: l.foto_versao == null ? null : Number(l.foto_versao) };
 }
 
 export async function encerrarSessao(token: string): Promise<void> {

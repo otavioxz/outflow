@@ -9,8 +9,15 @@ import { cn } from "@/lib/utils";
 const texto = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" });
 const titulos = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-titulo" });
 
-// cor da barra de status no celular (combina com o fundo escuro da marca)
-export const viewport: Viewport = { themeColor: "#0a0e0c" };
+// Cor da barra de status no celular (combina com o fundo escuro da marca). Sem zoom de pinça nem de
+// toque duplo: no APK (TWA do PWABuilder) o Outflow deve se comportar como app, não como site.
+export const viewport: Viewport = {
+  themeColor: "#0a0e0c",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   title: "Outflow",

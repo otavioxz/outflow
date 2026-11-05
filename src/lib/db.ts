@@ -26,6 +26,9 @@ async function migrarColunas(): Promise<void> {
   await adicionarColuna("usuarios", "telefone", "TEXT");
   await adicionarColuna("usuarios", "codigo_vinculo", "TEXT");
   await adicionarColuna("usuarios", "codigo_expira_em", "INTEGER");
+  // Foto de perfil (WebP de 256x256, ~15 KB) e a versão, que muda a cada troca para o navegador não usar a antiga
+  await adicionarColuna("usuarios", "foto", "BLOB");
+  await adicionarColuna("usuarios", "foto_versao", "INTEGER");
 
   await db().batch(
     [

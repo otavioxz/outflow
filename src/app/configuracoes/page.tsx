@@ -18,7 +18,7 @@ import { mascararNumero } from "@/lib/telefone";
 import { contarOutrasSessoes } from "@/lib/usuarios";
 import { estadoWhatsapp } from "@/lib/vinculo";
 import { numeroDoBot } from "@/lib/whatsapp";
-import { FormConvites, FormMetaGuardado, FormOrcamento, FormOutrasSessoes, FormSenha, FormWhatsapp, type ConviteNaTela } from "./formularios";
+import { FormConvites, FormFoto, FormMetaGuardado, FormOrcamento, FormOutrasSessoes, FormSenha, FormWhatsapp, type ConviteNaTela } from "./formularios";
 
 export const metadata: Metadata = { title: "Configurações · Outflow" };
 
@@ -57,7 +57,7 @@ async function Configuracoes() {
 
   return (
     <div className="flex-1">
-      <Cabecalho nome={usuario.nome} email={usuario.email} />
+      <Cabecalho nome={usuario.nome} email={usuario.email} fotoVersao={usuario.fotoVersao} />
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6 sm:pt-8">
         <div>
@@ -147,7 +147,8 @@ async function Configuracoes() {
             <CardTitle>Sua conta</CardTitle>
             <CardDescription>Nome e e-mail são definidos no cadastro do acesso.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-5">
+            <FormFoto nome={usuario.nome} fotoVersao={usuario.fotoVersao} />
             <dl className="grid gap-3 text-sm sm:grid-cols-[8rem_1fr]">
               <dt className="text-muted-foreground">Nome</dt>
               <dd className="font-medium">{usuario.nome}</dd>

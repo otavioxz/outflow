@@ -3,6 +3,7 @@
 import { LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { sair } from "@/app/login/actions";
+import { Avatar } from "@/components/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,12 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-function iniciais(nome: string) {
-  const partes = nome.trim().split(/\s+/);
-  return ((partes[0]?.[0] ?? "") + (partes.length > 1 ? partes[partes.length - 1][0] : "")).toUpperCase();
-}
-
-export function MenuUsuario({ nome, email }: { nome: string; email: string }) {
+export function MenuUsuario({ nome, email, fotoVersao }: { nome: string; email: string; fotoVersao: number | null }) {
   const router = useRouter();
   return (
     <DropdownMenu>
@@ -28,9 +24,7 @@ export function MenuUsuario({ nome, email }: { nome: string; email: string }) {
         className={cn(buttonVariants({ variant: "ghost" }), "h-9 gap-2 px-1.5 sm:pr-3")}
         aria-label={`Conta de ${nome}`}
       >
-        <span className="grid size-7 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {iniciais(nome)}
-        </span>
+        <Avatar nome={nome} fotoVersao={fotoVersao} />
         <span className="hidden max-w-32 truncate sm:inline">{nome}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

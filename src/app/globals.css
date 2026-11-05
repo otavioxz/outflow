@@ -110,6 +110,9 @@
   }
   html {
     @apply font-sans;
+    /* sensação de app no celular: sem o flash azul ao tocar e sem zoom de toque duplo */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   h1,
   h2,

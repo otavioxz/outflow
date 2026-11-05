@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { chavesLogin, definirCookieSessao, exigirUsuario, limparErros, minutosBloqueado, registrarErro, tokenAtual } from "@/lib/auth";
 import { formatarReais, lerReais } from "@/lib/categorias";
 import { cancelarConvite, ehAdmin, gerarConvite } from "@/lib/convites";
+import { TAMANHO_MAXIMO_FOTO, problemaNaFoto, removerFoto, salvarFoto } from "@/lib/foto";
 import {
   definirMetaGuardadoCentavos,
   definirOrcamentoCentavos,
@@ -165,4 +166,27 @@ export async function cancelarConviteAction(_: Estado, formData: FormData): Prom
   if (!(await cancelarConvite(usuario.id, codigo))) return { erro: "Esse convite já foi usado ou não existe." };
   revalidatePath("/configuracoes");
   return { ok: `Convite ${codigo} cancelado.` };
+}
+
+export async function salvarFotoAction(_: Estado, formData: FormData): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  const arquivo = formData.get("foto");
+  if (!(arquivo instanceof File)) return { erro: "Nenhuma imagem enviada." };
+  if (arquivo.size > TAMANHO_MAXIMO_FOTO) return { erro: "A imagem é grande demais." };
+  const bytes = new Uint8Array(await arquivo.arrayBuffer());
+  const problema = problemaNaFoto(bytes);
+  if (problema) return { erro: problema };
+
+  await salvarFoto(usuario.id, bytes);
+  revalidatePath("/");
+  revalidatePath("/configuracoes");
+  return { ok: "Foto de perfil atualizada." };
+}
+
+export async function removerFotoAction(_: Estado): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  await removerFoto(usuario.id);
+  revalidatePath("/");
+  revalidatePath("/configuracoes");
+  return { ok: "Foto removida." };
 }

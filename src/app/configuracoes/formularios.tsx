@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
-import { Copy, Loader2, MessageCircle, UserPlus } from "lucide-react";
+import { useActionState, useEffect, useRef, useTransition } from "react";
+import { Camera, Copy, Loader2, MessageCircle, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { Avatar } from "@/components/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,9 @@ import {
   desvincularWhatsappAction,
   encerrarOutrasSessoesAction,
   gerarConviteAction,
+  removerFotoAction,
   gerarCodigoWhatsappAction,
+  salvarFotoAction,
   salvarMetaGuardado,
   salvarOrcamento,
   type Estado,
@@ -335,5 +338,75 @@ function ItemConvite({ convite }: { convite: ConviteNaTela }) {
         </div>
       )}
     </li>
+  );
+}
+
+const LADO_FOTO = 256;
+
+/** Recorta o centro da imagem em quadrado e reduz para 256x256 (WebP), tudo no navegador. */
+async function prepararFoto(arquivo: File): Promise<Blob> {
+  const imagem = await createImageBitmap(arquivo); // já respeita a rotação das fotos do celular
+  const lado = Math.min(imagem.width, imagem.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = LADO_FOTO;
+  canvas.getContext("2d")!.drawImage(imagem, (imagem.width - lado) / 2, (imagem.height - lado) / 2, lado, lado, 0, 0, LADO_FOTO, LADO_FOTO);
+  imagem.close();
+  const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, "image/webp", 0.85));
+  if (!blob) throw new Error("não foi possível converter a imagem");
+  return blob;
+}
+
+export function FormFoto({ nome, fotoVersao }: { nome: string; fotoVersao: number | null }) {
+  const [estadoSalvar, salvar, salvando] = useActionState(salvarFotoAction, {});
+  const [estadoRemover, remover, removendo] = useActionState(removerFotoAction, {});
+  const [preparando, iniciarTransicao] = useTransition();
+  const campo = useRef<HTMLInputElement>(null);
+  useAvisos(estadoSalvar);
+  useAvisos(estadoRemover);
+  const ocupado = salvando || removendo || preparando;
+
+  function escolher(arquivo: File | undefined) {
+    if (!arquivo) return;
+    iniciarTransicao(async () => {
+      try {
+        const dados = new FormData();
+        dados.set("foto", await prepararFoto(arquivo), "foto.webp");
+        iniciarTransicao(() => salvar(dados)); // depois do await, a action precisa de uma transição nova
+      } catch {
+        toast.error("Não consegui abrir essa imagem. Tente uma foto JPG ou PNG.");
+      } finally {
+        if (campo.current) campo.current.value = ""; // permite escolher o mesmo arquivo de novo
+      }
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative">
+        <Avatar nome={nome} fotoVersao={fotoVersao} className="size-16 text-lg" />
+        {ocupado && (
+          <span className="absolute inset-0 grid place-items-center rounded-full bg-background/70">
+            <Loader2 className="size-5 animate-spin" />
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <input ref={campo} type="file" accept="image/*" className="sr-only" tabIndex={-1} onChange={(e) => escolher(e.target.files?.[0])} />
+          <Button type="button" variant="outline" size="sm" disabled={ocupado} onClick={() => campo.current?.click()}>
+            <Camera />
+            {fotoVersao ? "Trocar foto" : "Adicionar foto"}
+          </Button>
+          {fotoVersao && (
+            <form action={remover}>
+              <Button type="submit" variant="ghost" size="sm" disabled={ocupado}>
+                Remover
+              </Button>
+            </form>
+          )}
+        </div>
+        <Erro estado={estadoSalvar} />
+      </div>
+    </div>
   );
 }

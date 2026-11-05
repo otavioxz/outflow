@@ -79,7 +79,7 @@ async function Painel({ searchParams }: Props) {
 
   return (
     <div className="flex-1">
-      <Cabecalho nome={usuario.nome} email={usuario.email} />
+      <Cabecalho nome={usuario.nome} email={usuario.email} fotoVersao={usuario.fotoVersao} />
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:pt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">

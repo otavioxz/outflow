@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { COOKIE_SESSAO, EM_PRODUCAO } from "./requisicao";
-import { usuarioDaSessao, type Usuario } from "./usuarios";
+import { usuarioDaSessao, type UsuarioLogado } from "./usuarios";
 
 /** Usuário logado na requisição atual, ou null. */
-export async function usuarioAtual(): Promise<Usuario | null> {
+export async function usuarioAtual(): Promise<UsuarioLogado | null> {
   const token = (await cookies()).get(COOKIE_SESSAO)?.value;
   if (!token || token.length > 100) return null;
   return usuarioDaSessao(token);
@@ -27,7 +27,7 @@ export async function tokenAtual(): Promise<string | undefined> {
 }
 
 /** Para páginas e server actions: manda para o login se não houver sessão válida. */
-export async function exigirUsuario(): Promise<Usuario> {
+export async function exigirUsuario(): Promise<UsuarioLogado> {
   const usuario = await usuarioAtual();
   if (!usuario) redirect("/login");
   return usuario;
