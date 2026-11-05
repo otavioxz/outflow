@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { alterarSenha, encerrarOutrasSessoesAction, salvarOrcamento, type Estado } from "./actions";
+import { alterarSenha, encerrarOutrasSessoesAction, salvarMetaGuardado, salvarOrcamento, type Estado } from "./actions";
 
 /** Mostra o resultado da ação: erro embaixo do formulário, sucesso como aviso no canto. */
 function useAvisos(estado: Estado) {
@@ -33,23 +33,64 @@ function BotaoEnviar({ enviando, children, ...props }: React.ComponentProps<type
 }
 
 export function FormOrcamento({ valorAtual }: { valorAtual: string }) {
-  const [estado, acao, enviando] = useActionState(salvarOrcamento, {});
+  return (
+    <FormValorMensal
+      acaoServidor={salvarOrcamento}
+      nome="orcamento"
+      placeholder="3.000,00"
+      valorAtual={valorAtual}
+      rotuloSalvar="Salvar orçamento"
+      rotuloRemover="Remover orçamento"
+    />
+  );
+}
+
+export function FormMetaGuardado({ valorAtual }: { valorAtual: string }) {
+  return (
+    <FormValorMensal
+      acaoServidor={salvarMetaGuardado}
+      nome="meta"
+      placeholder="500,00"
+      valorAtual={valorAtual}
+      rotuloSalvar="Salvar meta"
+      rotuloRemover="Remover meta"
+    />
+  );
+}
+
+/** Campo "R$ por mês" com salvar e remover (remover = enviar o campo vazio). */
+function FormValorMensal({
+  acaoServidor,
+  nome,
+  placeholder,
+  valorAtual,
+  rotuloSalvar,
+  rotuloRemover,
+}: {
+  acaoServidor: (estado: Estado, formData: FormData) => Promise<Estado>;
+  nome: string;
+  placeholder: string;
+  valorAtual: string;
+  rotuloSalvar: string;
+  rotuloRemover: string;
+}) {
+  const [estado, acao, enviando] = useActionState(acaoServidor, {});
   const campo = useRef<HTMLInputElement>(null);
   useAvisos(estado);
 
   return (
     <form action={acao} className="space-y-3">
       <div className="space-y-2">
-        <Label htmlFor="orcamento">Valor por mês</Label>
+        <Label htmlFor={nome}>Valor por mês</Label>
         <div className="relative max-w-56">
           <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
           <Input
             ref={campo}
-            id="orcamento"
-            name="orcamento"
+            id={nome}
+            name={nome}
             inputMode="decimal"
             autoComplete="off"
-            placeholder="3.000,00"
+            placeholder={placeholder}
             defaultValue={valorAtual}
             className="pl-9 tabular-nums"
             aria-invalid={Boolean(estado.erro)}
@@ -58,7 +99,7 @@ export function FormOrcamento({ valorAtual }: { valorAtual: string }) {
       </div>
       <Erro estado={estado} />
       <div className="flex flex-wrap gap-2">
-        <BotaoEnviar enviando={enviando}>Salvar orçamento</BotaoEnviar>
+        <BotaoEnviar enviando={enviando}>{rotuloSalvar}</BotaoEnviar>
         {valorAtual && (
           <Button
             type="submit"
@@ -68,7 +109,7 @@ export function FormOrcamento({ valorAtual }: { valorAtual: string }) {
               if (campo.current) campo.current.value = "";
             }}
           >
-            Remover orçamento
+            {rotuloRemover}
           </Button>
         )}
       </div>

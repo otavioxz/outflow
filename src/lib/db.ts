@@ -11,6 +11,16 @@ export function db(): Client {
   return globalDb._db;
 }
 
+/** Colunas adicionadas depois que as tabelas já existiam em produção (CREATE TABLE IF NOT EXISTS não as cria). */
+async function migrarColunas(): Promise<void> {
+  const colunas = await db().execute(`PRAGMA table_info(gastos)`);
+  if (!colunas.rows.some((c) => c.name === "chave_nota")) {
+    // Chave de acesso da nota fiscal: evita registrar a mesma nota duas vezes
+    await db().execute(`ALTER TABLE gastos ADD COLUMN chave_nota TEXT`);
+  }
+  await db().execute(`CREATE INDEX IF NOT EXISTS idx_gastos_chave_nota ON gastos(chave_nota) WHERE chave_nota IS NOT NULL`);
+}
+
 /** Cria as tabelas na primeira vez que o app usa o banco. */
 export async function prepararDb(): Promise<Client> {
   globalDb._dbPronto ??= db()
@@ -29,6 +39,18 @@ export async function prepararDb(): Promise<Client> {
           criado_em TEXT NOT NULL DEFAULT (datetime('now'))
         )`,
         `CREATE INDEX IF NOT EXISTS idx_gastos_data ON gastos(data)`,
+        // Dinheiro guardado (poupança, reserva...): fica fora dos totais de gastos e do orçamento
+        `CREATE TABLE IF NOT EXISTS guardados (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          valor_centavos INTEGER NOT NULL,
+          descricao TEXT NOT NULL,
+          data TEXT NOT NULL,
+          origem TEXT NOT NULL DEFAULT 'texto',
+          mensagem_original TEXT,
+          mensagem_id TEXT,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_guardados_data ON guardados(data)`,
         // Guarda os IDs de mensagens já processadas: a Meta pode reenviar o mesmo webhook
         `CREATE TABLE IF NOT EXISTS mensagens_processadas (
           id TEXT PRIMARY KEY,
@@ -77,7 +99,7 @@ export async function prepararDb(): Promise<Client> {
       ],
       "write",
     )
-    .then(() => undefined);
+    .then(migrarColunas);
   await globalDb._dbPronto;
   return db();
 }

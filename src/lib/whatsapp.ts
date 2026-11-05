@@ -21,6 +21,8 @@ export type MensagemWhatsApp = {
   type: "text" | "audio" | string;
   text?: { body: string };
   audio?: { id: string; mime_type?: string };
+  image?: { id: string; mime_type?: string; caption?: string };
+  document?: { id: string; mime_type?: string; caption?: string; filename?: string };
 };
 
 const GRAPH = () => `https://graph.facebook.com/${process.env.GRAPH_VERSION ?? "v23.0"}`;
@@ -91,11 +93,11 @@ export async function enviarTexto(para: string, texto: string): Promise<void> {
 }
 
 export async function baixarMidia(mediaId: string): Promise<Buffer> {
-  // No modo simulação, "local:arquivo.ogg" lê um áudio da pasta amostras/ do projeto
+  // No modo simulação, "local:arquivo.ogg" lê um arquivo (áudio, foto) da pasta amostras/ do projeto
   if (modoSimulacao() && mediaId.startsWith("local:")) {
     const pasta = path.resolve("amostras");
     const arquivo = path.resolve(pasta, mediaId.slice("local:".length));
-    if (!arquivo.startsWith(pasta + path.sep)) throw new Error("Áudio simulado precisa estar na pasta amostras/");
+    if (!arquivo.startsWith(pasta + path.sep)) throw new Error("Arquivo simulado precisa estar na pasta amostras/");
     return fs.readFile(arquivo);
   }
 

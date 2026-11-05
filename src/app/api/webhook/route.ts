@@ -86,7 +86,8 @@ export async function POST(request: Request) {
     if (!(await marcarMensagemProcessada(msg.id))) continue; // reenvio da Meta
 
     // O painel aberto mostra "processando…" enquanto transcreve/interpreta
-    const atividade = await iniciarAtividade(msg.id, msg.type === "audio" ? "audio" : msg.type === "text" ? "texto" : "outro").catch(
+    const origem = msg.type === "audio" ? "audio" : msg.type === "text" ? "texto" : msg.type === "image" || msg.type === "document" ? "nota" : "outro";
+    const atividade = await iniciarAtividade(msg.id, origem).catch(
       () => null, // o aviso na tela é um extra: se falhar, o gasto continua sendo registrado
     );
 
@@ -130,8 +131,20 @@ function resumoParaPainel(r: Resultado): [Exclude<StatusAtividade, "processando"
   const limpar = (s: string) => s.replace(/\*/g, "").trim();
   switch (r.tipo) {
     case "gasto": {
-      const itens = r.resposta.split("\n").filter((l) => l.startsWith("✅")).map((l) => limpar(l.replace(/^✅\s*/, "")));
-      return ["gasto", itens.length > 1 ? `${itens.length} gastos registrados` : "Gasto registrado", itens.join("\n")];
+      const linhas = r.resposta.split("\n");
+      const gastos = linhas.filter((l) => l.startsWith("✅")).map((l) => limpar(l.replace(/^✅\s*/, "")));
+      const guardados = linhas.filter((l) => l.startsWith("🐷 Guardado ")).map((l) => limpar(l.replace(/^🐷\s*/, "")));
+      const titulo =
+        gastos.length && guardados.length
+          ? `${gastos.length + guardados.length} lançamentos registrados`
+          : guardados.length
+            ? "Valor guardado"
+            : r.origem === "nota"
+              ? "Nota fiscal registrada"
+            : gastos.length > 1
+              ? `${gastos.length} gastos registrados`
+              : "Gasto registrado";
+      return ["gasto", titulo, [...gastos, ...guardados].join("\n")];
     }
     case "comando":
       return ["comando", `Comando recebido: ${r.comando}`, r.comando === "desfazer" ? limpar(r.resposta) : undefined];
@@ -144,7 +157,7 @@ function resumoParaPainel(r: Resultado): [Exclude<StatusAtividade, "processando"
 
 function eventoDoResultado(r: Resultado, de: string): Evento {
   const titulos: Record<Resultado["tipo"], [string, Evento["nivel"]]> = {
-    gasto: ["Gasto registrado pelo WhatsApp", "sucesso"],
+    gasto: ["Lançamento registrado pelo WhatsApp", "sucesso"],
     comando: [`Comando do WhatsApp: ${r.comando ?? ""}`, "info"],
     sem_gasto: ["Mensagem sem gasto identificado", "alerta"],
     ignorada: ["Mensagem do WhatsApp não processada", "alerta"],
@@ -155,7 +168,7 @@ function eventoDoResultado(r: Resultado, de: string): Evento {
     nivel,
     campos: {
       De: mascararTelefone(de),
-      Origem: r.origem === "audio" ? "áudio" : "texto",
+      Origem: r.origem === "audio" ? "áudio" : r.origem === "nota" ? "foto de nota fiscal" : "texto",
       Mensagem: r.texto,
       Resultado: r.resposta.replace(/\*/g, ""),
     },

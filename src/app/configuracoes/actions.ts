@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { chavesLogin, definirCookieSessao, exigirUsuario, limparErros, minutosBloqueado, registrarErro, tokenAtual } from "@/lib/auth";
 import { formatarReais } from "@/lib/categorias";
-import { definirOrcamentoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
+import {
+  definirMetaGuardadoCentavos,
+  definirOrcamentoCentavos,
+  obterMetaGuardadoCentavos,
+  obterOrcamentoCentavos,
+} from "@/lib/configuracoes";
 import { registrarEvento } from "@/lib/log-discord";
 import { contextoRequisicao } from "@/lib/requisicao";
 import { autenticar, criarSessao, encerrarOutrasSessoes, trocarSenha } from "@/lib/usuarios";
@@ -41,6 +46,28 @@ export async function salvarOrcamento(_: Estado, formData: FormData): Promise<Es
     }),
   );
   return { ok: centavos ? `Orçamento salvo: ${formatarReais(centavos)} por mês.` : "Orçamento removido." };
+}
+
+export async function salvarMetaGuardado(_: Estado, formData: FormData): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  const centavos = lerReais(String(formData.get("meta") ?? "").slice(0, 30));
+  if (centavos === null) return { erro: "Valor inválido. Use algo como 500,00." };
+  if (centavos > 100_000_000_00) return { erro: "Valor alto demais." };
+
+  const anterior = await obterMetaGuardadoCentavos();
+  await definirMetaGuardadoCentavos(centavos);
+  revalidatePath("/");
+  revalidatePath("/configuracoes");
+
+  const descrever = (c: number) => (c ? formatarReais(c) : "sem meta");
+  after(() =>
+    registrarEvento({
+      titulo: "Meta de guardar por mês alterada",
+      nivel: "info",
+      campos: { Usuário: usuario.email, De: descrever(anterior), Para: descrever(centavos) },
+    }),
+  );
+  return { ok: centavos ? `Meta salva: guardar ${formatarReais(centavos)} por mês.` : "Meta removida." };
 }
 
 export async function alterarSenha(_: Estado, formData: FormData): Promise<Estado> {

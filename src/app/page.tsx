@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Mic, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Mic, PiggyBank, ReceiptText, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -13,10 +13,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exigirUsuario } from "@/lib/auth";
 import { NOME_PAGAMENTO, formatarReais, hojeISO } from "@/lib/categorias";
-import { obterOrcamentoCentavos } from "@/lib/configuracoes";
+import { obterMetaGuardadoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { gastosDoMes, totalDoMes } from "@/lib/gastos";
+import { guardadosDoMes } from "@/lib/guardados";
 import { cn } from "@/lib/utils";
-import { apagarGastoAction } from "./actions";
+import { apagarGastoAction, apagarGuardadoAction } from "./actions";
 
 type Props = { searchParams: Promise<{ mes?: string }> };
 
@@ -43,9 +44,16 @@ async function Painel({ searchParams }: Props) {
   const mesAnterior = deslocarMes(mes, -1);
   const proximoMes = deslocarMes(mes, 1);
 
-  const [gastos, totalAnterior, orcamento] = await Promise.all([gastosDoMes(mes), totalDoMes(mesAnterior), obterOrcamentoCentavos()]);
+  const [gastos, totalAnterior, orcamento, guardados, metaGuardado] = await Promise.all([
+    gastosDoMes(mes),
+    totalDoMes(mesAnterior),
+    obterOrcamentoCentavos(),
+    guardadosDoMes(mes),
+    obterMetaGuardadoCentavos(),
+  ]);
 
   const total = gastos.reduce((s, g) => s + g.valor_centavos, 0);
+  const totalGuardado = guardados.reduce((s, g) => s + g.valor_centavos, 0);
   const [ano, m] = mes.split("-").map(Number);
   const diasNoMes = new Date(ano, m, 0).getDate();
   const diasDecorridos = mes === mesAtual ? Number(hojeISO().slice(8, 10)) : diasNoMes;
@@ -99,7 +107,7 @@ async function Painel({ searchParams }: Props) {
           </div>
         </div>
 
-        <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
           <Card className="col-span-2">
             <CardHeader>
               <CardDescription>Gasto em {nomeMes}</CardDescription>
@@ -111,6 +119,26 @@ async function Painel({ searchParams }: Props) {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   <Link href="/configuracoes" className="font-medium text-foreground underline underline-offset-4">Defina um orçamento mensal</Link> para acompanhar quanto ainda pode gastar.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-2">
+            <CardHeader>
+              <CardDescription className="flex items-center gap-1.5">
+                <PiggyBank className="size-4" />
+                Guardado em {nomeMes}
+              </CardDescription>
+              <CardTitle className="text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">{formatarReais(totalGuardado)}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {metaGuardado ? (
+                <BarraMeta meta={metaGuardado} guardado={totalGuardado} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Fica separado dos gastos.{" "}
+                  <Link href="/configuracoes" className="font-medium text-foreground underline underline-offset-4">Defina uma meta</Link> para acompanhar quanto falta guardar.
                 </p>
               )}
             </CardContent>
@@ -155,7 +183,7 @@ async function Painel({ searchParams }: Props) {
               <div>
                 <p className="font-medium">Nenhum gasto em {nomeMesAno}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Mande algo como “gastei 45 no ifood” para o bot no WhatsApp e ele aparece aqui na hora.
+                  Mande algo como “gastei 45 no ifood” ou a foto de uma nota fiscal para o bot no WhatsApp e ele aparece aqui na hora.
                 </p>
               </div>
             </CardContent>
@@ -216,6 +244,9 @@ async function Painel({ searchParams }: Props) {
                           {g.origem === "audio" && (
                             <Mic className="size-3.5 text-muted-foreground" aria-label="Registrado por áudio" />
                           )}
+                          {g.origem === "nota" && (
+                            <ReceiptText className="size-3.5 text-muted-foreground" aria-label="Lido da foto de uma nota fiscal" />
+                          )}
                         </span>
                         <span className="block text-xs text-muted-foreground sm:hidden">{g.categoria}</span>
                       </TableCell>
@@ -246,6 +277,58 @@ async function Painel({ searchParams }: Props) {
               </Table>
             </ListaLancamentos>
           </>
+        )}
+
+        {guardados.length > 0 && (
+          <ListaLancamentos
+            titulo="Guardados"
+            descricao={`${guardados.length} ${guardados.length === 1 ? "valor guardado" : "valores guardados"} em ${nomeMes}, fora dos gastos`}
+          >
+            <Table containerClassName="overflow-visible">
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--border)]">
+                <TableRow>
+                  <TableHead className="w-16 pl-4 sm:pl-2">Data</TableHead>
+                  <TableHead>Onde</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-10 pr-4 sm:pr-2">
+                    <span className="sr-only">Ações</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {guardados.map((g) => (
+                  <TableRow key={g.id}>
+                    <TableCell className="pl-4 text-muted-foreground tabular-nums sm:pl-2">
+                      {g.data.split("-").reverse().slice(0, 2).join("/")}
+                    </TableCell>
+                    <TableCell className="max-w-56 whitespace-normal">
+                      <span className="inline-flex items-center gap-1.5 font-medium">
+                        {g.descricao}
+                        {g.origem === "audio" && (
+                          <Mic className="size-3.5 text-muted-foreground" aria-label="Registrado por áudio" />
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-success tabular-nums">{formatarReais(g.valor_centavos)}</TableCell>
+                    <TableCell className="pr-4 sm:pr-2">
+                      <form action={apagarGuardadoAction}>
+                        <input type="hidden" name="id" value={g.id} />
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          aria-label={`Apagar ${g.descricao}`}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </form>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ListaLancamentos>
         )}
       </main>
     </div>
@@ -279,13 +362,41 @@ function BarraOrcamento({ pct, orcamento, total }: { pct: number; orcamento: num
   );
 }
 
+function BarraMeta({ meta, guardado }: { meta: number; guardado: number }) {
+  const pct = Math.round((guardado / meta) * 100);
+  const falta = meta - guardado;
+  return (
+    <div className="space-y-2">
+      <div
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Progresso da meta de guardar"
+        className="h-2.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+      <p className="flex flex-wrap justify-between gap-x-4 text-sm text-muted-foreground">
+        <span>
+          <span className="font-medium text-foreground">{pct}%</span> da meta de {formatarReais(meta)}
+        </span>
+        <span className={cn(falta <= 0 && "font-medium text-success")}>
+          {falta > 0 ? `Faltam ${formatarReais(falta)}` : "Meta batida 🎉"}
+        </span>
+      </p>
+    </div>
+  );
+}
+
 function Carregando() {
   return (
     <div className="flex-1">
       <div className="h-14 border-b" />
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
         <Skeleton className="h-9 w-64" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+          <Skeleton className="col-span-2 h-40" />
           <Skeleton className="col-span-2 h-40" />
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />

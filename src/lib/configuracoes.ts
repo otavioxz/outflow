@@ -21,3 +21,19 @@ export async function definirOrcamentoCentavos(centavos: number): Promise<void> 
     args: [String(centavos)],
   });
 }
+
+/** Meta de quanto guardar por mês, em centavos (0 = sem meta). */
+export async function obterMetaGuardadoCentavos(): Promise<number> {
+  const db = await prepararDb();
+  const r = await db.execute({ sql: `SELECT valor FROM configuracoes WHERE chave = 'meta_guardado_centavos'`, args: [] });
+  return Number(r.rows[0]?.valor) || 0;
+}
+
+export async function definirMetaGuardadoCentavos(centavos: number): Promise<void> {
+  const db = await prepararDb();
+  await db.execute({
+    sql: `INSERT INTO configuracoes (chave, valor, atualizado_em) VALUES ('meta_guardado_centavos', ?, datetime('now'))
+          ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor, atualizado_em = excluded.atualizado_em`,
+    args: [String(centavos)],
+  });
+}

@@ -3,6 +3,7 @@
 //   npm run simular                         -> modo conversa (digite as mensagens)
 //   npm run simular -- "gastei 45 no ifood" -> envia uma mensagem e sai
 //   npm run simular -- --audio teste.ogg    -> envia um áudio que está em amostras/
+//   npm run simular -- --foto nota.jpg      -> envia a foto de uma nota fiscal que está em amostras/
 import "dotenv/config";
 import crypto from "node:crypto";
 import readline from "node:readline/promises";
@@ -71,6 +72,10 @@ const args = process.argv.slice(2);
 if (args[0] === "--audio") {
   if (!args[1]) throw new Error("Informe o arquivo: npm run simular -- --audio teste.ogg");
   await enviar({ type: "audio", audio: { id: `local:${args[1]}`, mime_type: "audio/ogg; codecs=opus" } });
+} else if (args[0] === "--foto") {
+  if (!args[1]) throw new Error("Informe o arquivo: npm run simular -- --foto nota.jpg");
+  const legenda = args.slice(2).join(" ") || undefined;
+  await enviar({ type: "image", image: { id: `local:${args[1]}`, mime_type: args[1].endsWith(".png") ? "image/png" : "image/jpeg", caption: legenda } });
 } else if (args.length > 0) {
   await enviar({ type: "text", text: { body: args.join(" ") } });
 } else {

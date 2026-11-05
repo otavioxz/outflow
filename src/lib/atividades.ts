@@ -6,7 +6,7 @@ export type StatusAtividade = "processando" | "gasto" | "comando" | "sem_gasto" 
 
 export type Atividade = {
   id: number;
-  origem: "texto" | "audio" | "outro";
+  origem: "texto" | "audio" | "nota" | "outro";
   status: StatusAtividade;
   titulo: string;
   detalhe: string | null;
@@ -17,7 +17,8 @@ export type Atividade = {
 export async function iniciarAtividade(mensagemId: string, origem: Atividade["origem"]): Promise<number> {
   const db = await prepararDb();
   const agora = Date.now();
-  const titulo = origem === "audio" ? "Áudio recebido, transcrevendo…" : "Mensagem recebida, processando…";
+  const titulo =
+    origem === "audio" ? "Áudio recebido, transcrevendo…" : origem === "nota" ? "Nota fiscal recebida, lendo…" : "Mensagem recebida, processando…";
   const r = await db.execute({
     sql: `INSERT INTO atividades (mensagem_id, origem, status, titulo, criada_em, atualizada_em)
           VALUES (?, ?, 'processando', ?, ?, ?)

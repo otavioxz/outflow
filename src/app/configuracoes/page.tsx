@@ -9,10 +9,11 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { exigirUsuario, tokenAtual } from "@/lib/auth";
 import { formatarReais, hojeISO } from "@/lib/categorias";
-import { obterOrcamentoCentavos } from "@/lib/configuracoes";
+import { obterMetaGuardadoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { totalDoMes } from "@/lib/gastos";
+import { totalGuardadoNoMes } from "@/lib/guardados";
 import { contarOutrasSessoes } from "@/lib/usuarios";
-import { FormOrcamento, FormOutrasSessoes, FormSenha } from "./formularios";
+import { FormMetaGuardado, FormOrcamento, FormOutrasSessoes, FormSenha } from "./formularios";
 
 export const metadata: Metadata = { title: "Configurações · Outflow" };
 
@@ -28,15 +29,19 @@ async function Configuracoes() {
   await connection();
   const usuario = await exigirUsuario();
   const token = (await tokenAtual())!;
-  const [orcamento, gastoNoMes, outrasSessoes] = await Promise.all([
+  const mes = hojeISO().slice(0, 7);
+  const [orcamento, gastoNoMes, meta, guardadoNoMes, outrasSessoes] = await Promise.all([
     obterOrcamentoCentavos(),
-    totalDoMes(hojeISO().slice(0, 7)),
+    totalDoMes(mes),
+    obterMetaGuardadoCentavos(),
+    totalGuardadoNoMes(mes),
     contarOutrasSessoes(usuario.id, token),
   ]);
 
   // "3000,00" -> "3.000,00" para o campo
-  const valorAtual = orcamento ? (orcamento / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+  const paraCampo = (centavos: number) => (centavos ? (centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "");
   const pct = orcamento ? Math.round((gastoNoMes / orcamento) * 100) : 0;
+  const pctMeta = meta ? Math.round((guardadoNoMes / meta) * 100) : 0;
 
   return (
     <div className="flex-1">
@@ -60,11 +65,30 @@ async function Configuracoes() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormOrcamento valorAtual={valorAtual} />
+            <FormOrcamento valorAtual={paraCampo(orcamento)} />
             {orcamento > 0 && (
               <p className="text-sm text-muted-foreground">
                 Neste mês: <span className="font-medium text-foreground tabular-nums">{formatarReais(gastoNoMes)}</span> ({pct}% do
                 orçamento).
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Meta de guardar por mês</CardTitle>
+            <CardDescription>
+              Quanto você quer guardar por mês (poupança, reserva...). O valor guardado fica separado dos gastos e não conta no
+              orçamento. Deixe em branco para não usar meta.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormMetaGuardado valorAtual={paraCampo(meta)} />
+            {meta > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Neste mês: <span className="font-medium text-foreground tabular-nums">{formatarReais(guardadoNoMes)}</span> ({pctMeta}% da
+                meta).
               </p>
             )}
           </CardContent>
