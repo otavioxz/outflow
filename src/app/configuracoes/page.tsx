@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { exigirUsuario, tokenAtual } from "@/lib/auth";
 import { formatarReais, hojeISO } from "@/lib/categorias";
+import { ehAdmin, listarConvites, type Convite } from "@/lib/convites";
 import { obterMetaGuardadoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { totalDoMes } from "@/lib/gastos";
 import { totalGuardadoNoMes } from "@/lib/guardados";
@@ -17,7 +18,7 @@ import { mascararNumero } from "@/lib/telefone";
 import { contarOutrasSessoes } from "@/lib/usuarios";
 import { estadoWhatsapp } from "@/lib/vinculo";
 import { numeroDoBot } from "@/lib/whatsapp";
-import { FormMetaGuardado, FormOrcamento, FormOutrasSessoes, FormSenha, FormWhatsapp } from "./formularios";
+import { FormConvites, FormMetaGuardado, FormOrcamento, FormOutrasSessoes, FormSenha, FormWhatsapp, type ConviteNaTela } from "./formularios";
 
 export const metadata: Metadata = { title: "Configurações · Outflow" };
 
@@ -34,7 +35,7 @@ async function Configuracoes() {
   const usuario = await exigirUsuario();
   const token = (await tokenAtual())!;
   const mes = hojeISO().slice(0, 7);
-  const [orcamento, gastoNoMes, meta, guardadoNoMes, outrasSessoes, whatsapp, numeroBot] = await Promise.all([
+  const [orcamento, gastoNoMes, meta, guardadoNoMes, outrasSessoes, whatsapp, numeroBot, admin] = await Promise.all([
     obterOrcamentoCentavos(usuario.id),
     totalDoMes(usuario.id, mes),
     obterMetaGuardadoCentavos(usuario.id),
@@ -42,7 +43,9 @@ async function Configuracoes() {
     contarOutrasSessoes(usuario.id, token),
     estadoWhatsapp(usuario.id),
     numeroDoBot(),
+    ehAdmin(usuario.id),
   ]);
+  const convites = admin ? (await listarConvites(usuario.id)).map(paraTela) : [];
   const validoAte = whatsapp.expiraEm
     ? new Date(whatsapp.expiraEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })
     : null;
@@ -124,6 +127,21 @@ async function Configuracoes() {
           </CardContent>
         </Card>
 
+        {admin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Convites</CardTitle>
+              <CardDescription>
+                Você é o administrador (seu WhatsApp está em MEU_NUMERO). Cada convite serve para uma pessoa criar conta e
+                vale por 7 dias.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormConvites convites={convites} />
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Sua conta</CardTitle>
@@ -156,6 +174,15 @@ async function Configuracoes() {
       </main>
     </div>
   );
+}
+
+const dataCurta = (ms: number) =>
+  new Date(ms).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+
+function paraTela(c: Convite): ConviteNaTela {
+  if (c.usado_em) return { codigo: c.codigo, situacao: "usado", detalhe: `Usado por ${c.usado_por_nome ?? "alguém"} em ${dataCurta(c.usado_em)}` };
+  if (c.expira_em <= Date.now()) return { codigo: c.codigo, situacao: "vencido", detalhe: `Venceu em ${dataCurta(c.expira_em)}` };
+  return { codigo: c.codigo, situacao: "pendente", detalhe: `Aguardando cadastro · vale até ${dataCurta(c.expira_em)}` };
 }
 
 function Carregando() {

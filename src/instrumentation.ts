@@ -11,6 +11,7 @@ function verificarConfiguracao(): { erros: string[]; avisos: string[] } {
   if (e.WHATSAPP_TOKEN && !e.APP_SECRET) erros.push("APP_SECRET ausente: o webhook vai recusar tudo");
   if (e.CODIGO_CONVITE && e.CODIGO_CONVITE.length < 8)
     erros.push("CODIGO_CONVITE curto demais: qualquer um poderia adivinhar e criar uma conta (use 8+ caracteres)");
+  if (!e.MEU_NUMERO) avisos.push("MEU_NUMERO ausente: ninguém é administrador, então não dá para gerar convites pelo painel");
   if (!e.DATABASE_URL || e.DATABASE_URL.startsWith("file:")) {
     if (e.VERCEL) erros.push("DATABASE_URL ausente ou arquivo local: na Vercel o disco é só leitura. Configure o Turso (libsql://...).");
     else avisos.push("DATABASE_URL é um arquivo local: em hospedagens serverless (Vercel) os dados se perdem. Use o Turso.");

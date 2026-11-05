@@ -132,6 +132,15 @@ export async function prepararDb(): Promise<Client> {
           atualizado_em TEXT NOT NULL DEFAULT (datetime('now')),
           PRIMARY KEY (usuario_id, chave)
         )`,
+        // Convites de uso único que o admin gera no painel para alguém criar conta
+        `CREATE TABLE IF NOT EXISTS convites (
+          codigo TEXT PRIMARY KEY,
+          criado_por INTEGER NOT NULL,
+          criado_em INTEGER NOT NULL,
+          expira_em INTEGER NOT NULL,
+          usado_em INTEGER,
+          usado_por INTEGER
+        )`,
         // Configurações do sistema (ex.: controle de migrações). Antes guardava também o orçamento.
         `CREATE TABLE IF NOT EXISTS configuracoes (
           chave TEXT PRIMARY KEY,

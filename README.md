@@ -22,7 +22,10 @@ npm run dev              # http://localhost:3000
 
 Cada usuário tem os próprios gastos, guardados, orçamento e meta: ninguém vê os dados de outro.
 
-- **Pelo site:** em `/cadastro`, com o código de convite (`CODIGO_CONVITE`). Sem essa variável, o cadastro fica fechado.
+- **Pelo site, com convite:** o administrador gera convites em **Configurações → Convites** (uso único, valem 7 dias)
+  e manda o link `/cadastro?convite=K7QM-3XPA`, que já abre com o código preenchido.
+  Administrador é a conta cujo WhatsApp vinculado está em `MEU_NUMERO`: só quem tem aquele celular consegue vincular o número.
+  Opcionalmente, `CODIGO_CONVITE` define um código fixo que vale para várias pessoas.
 - **Pelo terminal:**
 
 ```bash
@@ -87,8 +90,8 @@ Tudo é opcional para começar. O app se adapta ao que estiver preenchido:
 | `TRANSCRICAO_API_KEY` | áudios são recusados | áudios são transcritos (OpenAI Whisper ou Groq) |
 | `WHATSAPP_TOKEN` | **modo simulação**: respostas voltam para o simulador | respostas são enviadas pelo WhatsApp |
 | `APP_SECRET` | assinatura não é checada (só no modo simulação) | só aceita requisições assinadas pela Meta |
-| `CODIGO_CONVITE` | cadastro pelo site fechado | quem tem o código cria a própria conta em `/cadastro` |
-| `MEU_NUMERO` | — | número usado pelo simulador; na migração de um banco antigo, vira o WhatsApp do primeiro usuário |
+| `MEU_NUMERO` | ninguém é administrador | a conta com esse WhatsApp vinculado gera convites; também é o número do simulador e, na migração de um banco antigo, vira o WhatsApp do primeiro usuário |
+| `CODIGO_CONVITE` | só valem os convites gerados no painel | um código fixo (8+ caracteres) que também permite criar conta |
 
 💡 Para economizar na IA, troque `CLAUDE_MODEL` para `claude-haiku-5-5`.
 
@@ -129,6 +132,7 @@ src/
     guardados.ts          dinheiro guardado no mês
     configuracoes.ts      orçamento e meta de cada usuário
     vinculo.ts            código "vincular 123456" que liga o WhatsApp à conta
+    convites.ts           administrador e convites de uso único
     telefone.ts           formato dos números (com e sem o 9º dígito)
     db.ts                 conexão SQLite/libSQL, criação das tabelas e migrações
     usuarios.ts           senhas (scrypt), sessões e cadastro de usuários
@@ -159,7 +163,7 @@ Ao subir, se faltar alguma configuração essencial, chega no Discord **"Servido
 ### O que já vem protegido
 | Proteção | Como |
 |---|---|
-| Painel privado | Tudo exige login, exceto login, cadastro e o webhook. Cadastro só com código de convite (erros contam no limite de tentativas do IP). |
+| Painel privado | Tudo exige login, exceto login, cadastro e o webhook. Cadastro só com convite de uso único (ou o código fixo); erros contam no limite de tentativas do IP. |
 | Dados separados | Toda consulta filtra pelo usuário logado (ou dono do WhatsApp); apagar um id de outra conta não faz nada. Coberto pelos testes. |
 | Senhas | Hash scrypt com sal; mínimo de 12 caracteres no cadastro. |
 | Sessão | Cookie `__Host-sessao`: httpOnly (JavaScript não lê), secure (só HTTPS), SameSite=Lax, 30 dias. No banco fica só o hash do token. |

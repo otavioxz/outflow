@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -11,7 +10,9 @@ import { FormCadastro } from "./form";
 
 export const metadata: Metadata = { title: "Criar conta · Outflow" };
 
-export default function CadastroPage() {
+type Props = { searchParams: Promise<{ convite?: string }> };
+
+export default function CadastroPage({ searchParams }: Props) {
   return (
     <main className="grid flex-1 place-items-center px-4 py-6">
       <div className="w-full max-w-sm space-y-6">
@@ -27,7 +28,7 @@ export default function CadastroPage() {
           </CardHeader>
           <CardContent>
             <Suspense fallback={<Skeleton className="h-96" />}>
-              <Conteudo />
+              <Conteudo searchParams={searchParams} />
             </Suspense>
           </CardContent>
         </Card>
@@ -36,17 +37,10 @@ export default function CadastroPage() {
   );
 }
 
-async function Conteudo() {
+async function Conteudo({ searchParams }: Props) {
   await connection();
   if (await usuarioAtual()) redirect("/");
-  if (!process.env.CODIGO_CONVITE)
-    return (
-      <p className="text-sm text-muted-foreground">
-        O cadastro está fechado no momento.{" "}
-        <Link href="/login" className="font-medium text-foreground underline underline-offset-4">
-          Voltar para o login
-        </Link>
-      </p>
-    );
-  return <FormCadastro />;
+  // o link do convite (/cadastro?convite=K7QM-3XPA) já vem com o código preenchido
+  const { convite } = await searchParams;
+  return <FormCadastro convite={typeof convite === "string" ? convite.slice(0, 20) : undefined} />;
 }

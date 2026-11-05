@@ -39,5 +39,5 @@ export default function LoginPage() {
 async function Conteudo() {
   await connection();
   if (await usuarioAtual()) redirect("/");
-  return <FormLogin semUsuarios={!(await existeAlgumUsuario())} cadastroAberto={Boolean(process.env.CODIGO_CONVITE)} />;
+  return <FormLogin semUsuarios={!(await existeAlgumUsuario())} />;
 }

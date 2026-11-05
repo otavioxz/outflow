@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cadastrar, type EstadoCadastro } from "./actions";
 
-export function FormCadastro() {
+export function FormCadastro({ convite }: { convite?: string }) {
   const [estado, acao, enviando] = useActionState<EstadoCadastro, FormData>(cadastrar, {});
 
   return (
@@ -42,7 +42,7 @@ export function FormCadastro() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="convite">Código de convite</Label>
-        <Input id="convite" name="convite" autoComplete="off" required defaultValue={estado.convite} />
+        <Input id="convite" name="convite" autoComplete="off" required defaultValue={estado.convite ?? convite} />
       </div>
 
       <Button type="submit" className="h-10 w-full" disabled={enviando}>

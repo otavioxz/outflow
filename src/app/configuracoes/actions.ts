@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { chavesLogin, definirCookieSessao, exigirUsuario, limparErros, minutosBloqueado, registrarErro, tokenAtual } from "@/lib/auth";
 import { formatarReais, lerReais } from "@/lib/categorias";
+import { cancelarConvite, ehAdmin, gerarConvite } from "@/lib/convites";
 import {
   definirMetaGuardadoCentavos,
   definirOrcamentoCentavos,
@@ -144,4 +145,24 @@ export async function desvincularWhatsappAction(_: Estado): Promise<Estado> {
   revalidatePath("/configuracoes");
   revalidatePath("/");
   return { ok: "WhatsApp desvinculado. As mensagens desse número não serão mais registradas." };
+}
+
+export async function gerarConviteAction(_: Estado): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  if (!(await ehAdmin(usuario.id))) return { erro: "Só o administrador pode gerar convites." };
+  const codigo = await gerarConvite(usuario.id);
+  after(() =>
+    registrarEvento({ titulo: "Convite gerado", nivel: "info", campos: { Admin: usuario.email, Convite: codigo } }),
+  );
+  revalidatePath("/configuracoes");
+  return { ok: `Convite ${codigo} criado. Copie o link e mande para a pessoa.` };
+}
+
+export async function cancelarConviteAction(_: Estado, formData: FormData): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  if (!(await ehAdmin(usuario.id))) return { erro: "Só o administrador pode cancelar convites." };
+  const codigo = String(formData.get("codigo") ?? "").slice(0, 20);
+  if (!(await cancelarConvite(usuario.id, codigo))) return { erro: "Esse convite já foi usado ou não existe." };
+  revalidatePath("/configuracoes");
+  return { ok: `Convite ${codigo} cancelado.` };
 }

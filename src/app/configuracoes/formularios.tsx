@@ -1,15 +1,18 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Copy, Loader2, MessageCircle } from "lucide-react";
+import { Copy, Loader2, MessageCircle, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   alterarSenha,
+  cancelarConviteAction,
   desvincularWhatsappAction,
   encerrarOutrasSessoesAction,
+  gerarConviteAction,
   gerarCodigoWhatsappAction,
   salvarMetaGuardado,
   salvarOrcamento,
@@ -259,5 +262,78 @@ export function FormWhatsapp({
         )}
       </div>
     </div>
+  );
+}
+
+export type ConviteNaTela = { codigo: string; situacao: "pendente" | "usado" | "vencido"; detalhe: string };
+
+/** Painel do admin: gera convites de uso único e mostra quem já usou. */
+export function FormConvites({ convites }: { convites: ConviteNaTela[] }) {
+  const [estado, gerar, gerando] = useActionState(gerarConviteAction, {});
+  useAvisos(estado);
+
+  return (
+    <div className="space-y-4">
+      <form action={gerar} className="space-y-2">
+        <Erro estado={estado} />
+        <BotaoEnviar enviando={gerando}>
+          <UserPlus />
+          Gerar convite
+        </BotaoEnviar>
+      </form>
+      {convites.length > 0 && (
+        <ul className="divide-y rounded-lg ring-1 ring-foreground/10">
+          {convites.map((c) => (
+            <ItemConvite key={c.codigo} convite={c} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ItemConvite({ convite }: { convite: ConviteNaTela }) {
+  const [estado, cancelar, cancelando] = useActionState(cancelarConviteAction, {});
+  useAvisos(estado);
+  const link = () => `${window.location.origin}/cadastro?convite=${convite.codigo}`;
+  const mensagem = () => `Você foi convidado para o Outflow! Crie sua conta aqui: ${link()}`;
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2.5">
+      <div className="min-w-0">
+        <p className={cn("font-mono font-semibold tracking-wider", convite.situacao !== "pendente" && "text-muted-foreground line-through")}>
+          {convite.codigo}
+        </p>
+        <p className="text-xs text-muted-foreground">{convite.detalhe}</p>
+      </div>
+      {convite.situacao === "pendente" && (
+        <div className="flex flex-wrap gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => navigator.clipboard.writeText(link()).then(() => toast.success("Link do convite copiado."))}
+          >
+            <Copy />
+            Copiar link
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(mensagem())}`, "_blank", "noreferrer")}
+          >
+            <MessageCircle />
+            Enviar
+          </Button>
+          <form action={cancelar}>
+            <input type="hidden" name="codigo" value={convite.codigo} />
+            <BotaoEnviar enviando={cancelando} variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+              Cancelar
+            </BotaoEnviar>
+          </form>
+        </div>
+      )}
+    </li>
   );
 }

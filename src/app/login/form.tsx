@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { entrar, type EstadoLogin } from "./actions";
 
-export function FormLogin({ semUsuarios, cadastroAberto }: { semUsuarios: boolean; cadastroAberto: boolean }) {
+export function FormLogin({ semUsuarios }: { semUsuarios: boolean }) {
   const [estado, acao, enviando] = useActionState<EstadoLogin, FormData>(entrar, {});
 
   return (
@@ -62,14 +62,12 @@ export function FormLogin({ semUsuarios, cadastroAberto }: { semUsuarios: boolea
         {enviando ? <Loader2 className="animate-spin" /> : <LogIn />}
         {enviando ? "Entrando…" : "Entrar"}
       </Button>
-      {cadastroAberto && (
-        <p className="text-center text-sm text-muted-foreground">
-          Recebeu um convite?{" "}
-          <Link href="/cadastro" className="font-medium text-foreground underline underline-offset-4">
-            Criar conta
-          </Link>
-        </p>
-      )}
+      <p className="text-center text-sm text-muted-foreground">
+        Recebeu um convite?{" "}
+        <Link href="/cadastro" className="font-medium text-foreground underline underline-offset-4">
+          Criar conta
+        </Link>
+      </p>
     </form>
   );
 }
