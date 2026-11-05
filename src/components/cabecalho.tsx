@@ -5,7 +5,8 @@ import { MenuUsuario } from "@/components/menu-usuario";
 /** Barra superior das páginas logadas: marca (volta ao painel) e menu da conta. */
 export function Cabecalho({ nome, email, fotoVersao }: { nome: string; email: string; fotoVersao: number | null }) {
   return (
-    <header className="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
+    // z-30: acima do cabeçalho fixo das tabelas (z-10), abaixo de menus e janelas (z-50)
+    <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
         <Link href="/" aria-label="Ir para o painel">
           <Marca />
