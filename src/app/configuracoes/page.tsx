@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Cabecalho } from "@/components/cabecalho";
+import { FormNotificacoes } from "@/components/notificacoes-push";
 import { AoVivo } from "@/components/ao-vivo";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +15,7 @@ import { ehAdmin, listarConvites, type Convite } from "@/lib/convites";
 import { obterMetaGuardadoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { totalDoMes } from "@/lib/gastos";
 import { totalGuardadoNoMes } from "@/lib/guardados";
+import { chavePublicaPush } from "@/lib/push";
 import { mascararNumero } from "@/lib/telefone";
 import { contarOutrasSessoes } from "@/lib/usuarios";
 import { estadoWhatsapp } from "@/lib/vinculo";
@@ -45,6 +47,7 @@ async function Configuracoes() {
     numeroDoBot(),
     ehAdmin(usuario.id),
   ]);
+  const chavePush = chavePublicaPush();
   const convites = admin ? (await listarConvites(usuario.id)).map(paraTela) : [];
   const validoAte = whatsapp.expiraEm
     ? new Date(whatsapp.expiraEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })
@@ -88,6 +91,21 @@ async function Configuracoes() {
             />
           </CardContent>
         </Card>
+
+        {chavePush && (
+          <Card id="notificacoes" className="scroll-mt-20">
+            <CardHeader>
+              <CardTitle>Notificações</CardTitle>
+              <CardDescription>
+                Receba um aviso no celular ou no computador assim que um gasto mandado pelo WhatsApp for registrado. Vale para
+                cada aparelho separadamente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormNotificacoes chavePublica={chavePush} />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

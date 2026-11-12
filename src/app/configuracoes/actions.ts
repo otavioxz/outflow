@@ -13,6 +13,7 @@ import {
   obterOrcamentoCentavos,
 } from "@/lib/configuracoes";
 import { registrarEvento } from "@/lib/log-discord";
+import { enviarPush, lerInscricao, pushConfigurado, removerInscricao, salvarInscricao } from "@/lib/push";
 import { contextoRequisicao } from "@/lib/requisicao";
 import { autenticar, criarSessao, encerrarOutrasSessoes, problemaNaSenha, trocarSenha } from "@/lib/usuarios";
 import { desvincularTelefone, gerarCodigoVinculo } from "@/lib/vinculo";
@@ -189,4 +190,35 @@ export async function removerFotoAction(_: Estado): Promise<Estado> {
   revalidatePath("/");
   revalidatePath("/configuracoes");
   return { ok: "Foto removida." };
+}
+
+// ---------------------------------------------------------------------------
+// Notificações push (chamadas pelo componente do navegador, não por formulário)
+
+/** Guarda a inscrição de push deste aparelho. Também é chamada a cada visita, para manter a sessão atual. */
+export async function salvarInscricaoPushAction(dados: unknown): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  const token = await tokenAtual();
+  if (!token) return { erro: "Sessão inválida." };
+  if (!pushConfigurado()) return { erro: "As notificações não estão configuradas no servidor." };
+  const inscricao = lerInscricao(dados);
+  if (!inscricao) return { erro: "Este navegador mandou uma inscrição inválida." };
+  await salvarInscricao(usuario.id, token, inscricao);
+  return {};
+}
+
+export async function removerInscricaoPushAction(endpoint: unknown): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  if (typeof endpoint !== "string" || endpoint.length > 1024) return { erro: "Inscrição inválida." };
+  await removerInscricao(usuario.id, endpoint);
+  return {};
+}
+
+export async function testarPushAction(): Promise<Estado> {
+  const usuario = await exigirUsuario();
+  const enviadas = await enviarPush(usuario.id, {
+    titulo: "Notificações ativadas",
+    corpo: "É assim que os gastos do WhatsApp vão aparecer aqui.",
+  });
+  return enviadas ? {} : { erro: "Não consegui enviar. Desative e ative as notificações de novo." };
 }

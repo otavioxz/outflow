@@ -19,6 +19,8 @@ for (const chave of [
   "CODIGO_CONVITE",
   "DISCORD_WEBHOOK_URL",
   "DATABASE_AUTH_TOKEN",
+  "VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
 ])
   delete process.env[chave];
 process.env.DATABASE_URL = `file:${ARQUIVO_DB.replace(/\\/g, "/")}`;

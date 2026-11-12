@@ -56,7 +56,7 @@ export async function autenticar(email: string, senha: string): Promise<Usuario 
 // ---------------------------------------------------------------------------
 // Sessões
 
-const hashToken = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
+export const hashToken = (token: string) => crypto.createHash("sha256").update(token).digest("hex");
 
 export async function criarSessao(usuarioId: number): Promise<{ token: string; expiraEm: Date }> {
   const db = await prepararDb();
@@ -153,7 +153,7 @@ export async function removerUsuario(email: string): Promise<boolean> {
   if (!r.rows[0]) return false;
   const id = r.rows[0].id;
   await db.batch(
-    ["sessoes", "gastos", "guardados", "atividades", "configuracoes_usuario"].map((tabela) => ({
+    ["sessoes", "gastos", "guardados", "atividades", "configuracoes_usuario", "inscricoes_push"].map((tabela) => ({
       sql: `DELETE FROM ${tabela} WHERE usuario_id = ?`,
       args: [id],
     })),

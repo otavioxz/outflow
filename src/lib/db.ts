@@ -176,6 +176,16 @@ export async function prepararDb(): Promise<Client> {
           expira_em TEXT NOT NULL,
           criado_em TEXT NOT NULL DEFAULT (datetime('now'))
         )`,
+        // Aparelhos que recebem notificação push; cada um preso à sessão de login em que foi ativado
+        `CREATE TABLE IF NOT EXISTS inscricoes_push (
+          endpoint TEXT PRIMARY KEY,
+          usuario_id INTEGER NOT NULL,
+          token_hash TEXT NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_inscricoes_push_usuario ON inscricoes_push(usuario_id)`,
       ],
       "write",
     )

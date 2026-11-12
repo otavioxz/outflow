@@ -3,6 +3,7 @@ import { processarMensagem, processarVinculo, type Resultado } from "@/lib/bot";
 import { concluirAtividade, iniciarAtividade, type StatusAtividade } from "@/lib/atividades";
 import { marcarMensagemProcessada } from "@/lib/gastos";
 import { mascararTelefone, registrarEvento, type Evento } from "@/lib/log-discord";
+import { enviarPush } from "@/lib/push";
 import { ipDe } from "@/lib/requisicao";
 import { usuarioPorTelefone } from "@/lib/usuarios";
 import { PADRAO_VINCULAR } from "@/lib/vinculo";
@@ -128,12 +129,13 @@ export async function POST(request: Request) {
       resultado = { tipo: "sem_gasto", origem: "texto", resposta: "😕 Tive um problema para registrar isso. Tente de novo em instantes." };
     }
 
-    if (atividade !== null) {
-      const [status, titulo, detalhe] = falhou
-        ? (["erro", "Erro ao registrar a mensagem", "Tente de novo em instantes."] as const)
-        : resumoParaPainel(resultado);
-      await concluirAtividade(atividade, status, titulo, detalhe).catch(() => {});
-    }
+    const [status, titulo, detalhe] = falhou
+      ? (["erro", "Erro ao registrar a mensagem", "Tente de novo em instantes."] as const)
+      : resumoParaPainel(resultado);
+    if (atividade !== null) await concluirAtividade(atividade, status, titulo, detalhe).catch(() => {});
+
+    // Notificação nos aparelhos do usuário (depois da resposta, para não atrasar a Meta)
+    if (status !== "comando") after(() => enviarPush(usuario.id, { titulo, corpo: detalhe }));
 
     // O resultado sempre vai para o Discord; a resposta no WhatsApp só se RESPONDER_NO_WHATSAPP=true
     after(() => registrarEvento(eventoDoResultado(resultado, msg.from, usuario.email)));

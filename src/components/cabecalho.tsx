@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Marca } from "@/components/marca";
 import { MenuUsuario } from "@/components/menu-usuario";
+import { SincronizarPush } from "@/components/notificacoes-push";
 
 /** Barra superior das páginas logadas: marca (volta ao painel) e menu da conta. */
 export function Cabecalho({ nome, email, fotoVersao }: { nome: string; email: string; fotoVersao: number | null }) {
@@ -13,6 +14,7 @@ export function Cabecalho({ nome, email, fotoVersao }: { nome: string; email: st
         </Link>
         <MenuUsuario nome={nome} email={email} fotoVersao={fotoVersao} />
       </div>
+      <SincronizarPush />
     </header>
   );
 }

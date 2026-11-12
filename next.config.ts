@@ -41,7 +41,11 @@ const nextConfig: NextConfig = {
   // O cliente do SQLite/libSQL usa um módulo nativo: não deve ser empacotado pelo bundler
   serverExternalPackages: ["@libsql/client", "libsql"],
   async headers() {
-    return [{ source: "/:path*", headers: cabecalhosDeSeguranca }];
+    return [
+      { source: "/:path*", headers: cabecalhosDeSeguranca },
+      // service worker das notificações: o navegador sempre busca a versão mais nova
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] },
+    ];
   },
 };
 
