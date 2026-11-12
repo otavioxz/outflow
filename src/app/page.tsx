@@ -171,12 +171,7 @@ async function Painel({ searchParams }: Props) {
             </CardContent>
           </Card>
 
-          <Card
-            className={cn(
-              "col-span-2",
-              metaGuardado && totalGuardado >= metaGuardado ? "card-meta-batida" : "bg-success/5 ring-success/25",
-            )}
-          >
+          <Card className="col-span-2 bg-success/5 ring-success/25">
             <CardHeader>
               <CardDescription className="flex items-center gap-1.5 font-medium text-success">
                 <PiggyBank className="size-4" />
