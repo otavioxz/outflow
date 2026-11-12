@@ -14,6 +14,8 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(dados.titulo || "Outflow", {
       body: dados.corpo || "",
       icon: "/icones/icone-192.png",
+      // ícone pequeno da barra de status: o Android usa só o formato (transparência), por isso é a silhueta branca
+      badge: "/icones/badge-96.png",
       lang: "pt-BR",
       data: { url: dados.url || "/" },
     }),

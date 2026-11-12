@@ -20,6 +20,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icones/icone-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icones/icone-maskable-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
       { src: "/icones/icone-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      // silhueta branca: ícone das notificações na barra de status do Android (o PWABuilder usa no APK)
+      { src: "/icones/icone-monocromatico-512.png", sizes: "512x512", type: "image/png", purpose: "monochrome" },
     ],
   };
 }
