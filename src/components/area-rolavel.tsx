@@ -10,11 +10,12 @@ import { cn } from "@/lib/utils";
 export function AreaRolavel({
   children,
   className,
-  alturaMinima = 140, // cabeçalho + ~2 linhas
+  linhasMinimas = 3,
 }: {
   children: React.ReactNode;
   className?: string;
-  alturaMinima?: number;
+  /** mesmo com pouco espaço na tela, mostra pelo menos o cabeçalho da tabela + estas linhas */
+  linhasMinimas?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // há mais itens abaixo? mostra um esmaecido no pé da lista
@@ -38,8 +39,13 @@ export function AreaRolavel({
       const depois =
         (cartao ? cartao.getBoundingClientRect().bottom - el.getBoundingClientRect().bottom : 0) + (rodape?.offsetHeight ?? 0);
       const livre = Math.floor(window.innerHeight - topo - depois);
-      el.style.maxHeight = `${Math.max(livre, alturaMinima)}px`;
+      el.style.maxHeight = `${Math.max(livre, alturaMinima())}px`;
       conferirFim();
+    };
+    const alturaMinima = () => {
+      const cabecalho = el.querySelector("thead")?.getBoundingClientRect().height ?? 0;
+      const linhas = [...el.querySelectorAll("tbody > tr")].slice(0, linhasMinimas);
+      return Math.ceil(cabecalho + linhas.reduce((s, l) => s + l.getBoundingClientRect().height, 0));
     };
     const conferirFim = () => setTemMais(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
 
@@ -55,7 +61,7 @@ export function AreaRolavel({
       el.removeEventListener("scroll", conferirFim);
       desktop.removeEventListener("change", ajustar);
     };
-  }, [alturaMinima]);
+  }, [linhasMinimas]);
 
   return (
     // overscroll-contain só no desktop: no celular a lista não rola por dentro, e com ele o

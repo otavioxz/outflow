@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // `next dev` acessado pelo celular na rede local (http://192.168.x.x:3000)
+  allowedDevOrigins: ["192.168.*.*"],
   // O cliente do SQLite/libSQL usa um módulo nativo: não deve ser empacotado pelo bundler
   serverExternalPackages: ["@libsql/client", "libsql"],
   async headers() {

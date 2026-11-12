@@ -30,10 +30,11 @@ export function GraficoCategorias({ dados }: { dados: { categoria: string; total
         <XAxis type="number" tickFormatter={reaisCurto} tick={eixo} axisLine={false} tickLine={false} />
         <YAxis type="category" dataKey="categoria" width={92} tick={eixo} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
         <Tooltip
+          isAnimationActive
           cursor={{ fill: "var(--accent)" }}
           content={(p) => <Dica {...(p as DadosTooltip)} rotulo={(d) => String(d.categoria)} />}
         />
-        <Bar dataKey="total" fill="var(--chart-1)" radius={[0, 4, 4, 0]} maxBarSize={20} />
+        <Bar dataKey="total" fill="var(--chart-1)" radius={[0, 4, 4, 0]} maxBarSize={20} isAnimationActive />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -54,10 +55,11 @@ export function GraficoDiario({ dados }: { dados: { dia: number; total: number }
         />
         <YAxis tickFormatter={reaisCurto} tick={eixo} axisLine={false} tickLine={false} width={64} />
         <Tooltip
+          isAnimationActive
           cursor={{ fill: "var(--accent)" }}
           content={(p) => <Dica {...(p as DadosTooltip)} rotulo={(d) => `Dia ${d.dia}`} />}
         />
-        <Bar dataKey="total" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="total" fill="var(--chart-1)" radius={[4, 4, 0, 0]} isAnimationActive />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -154,3 +154,41 @@
     }
   }
 }
+
+/* Meta de guardar batida: um brilho verde contorna o card sem parar */
+@property --angulo-meta {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes girar-meta {
+  to {
+    --angulo-meta: 360deg;
+  }
+}
+
+/* Fora de @layer para vencer o ring/bg utilitários do Card */
+.card-meta-batida {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(color-mix(in oklab, var(--success) 6%, var(--card)), color-mix(in oklab, var(--success) 6%, var(--card))) padding-box,
+    conic-gradient(
+        from var(--angulo-meta),
+        color-mix(in oklab, var(--success) 20%, transparent) 0deg 240deg,
+        var(--success) 300deg,
+        color-mix(in oklab, var(--success) 20%, transparent) 360deg
+      )
+      border-box;
+  box-shadow: 0 0 24px -6px color-mix(in oklab, var(--success) 45%, transparent);
+  animation: girar-meta 4s linear infinite;
+}
+
+/* Celular: tocar em algo focável (gráficos, botões) não deve desenhar o contorno de
+   foco, que só faz sentido para quem navega pelo teclado */
+@media (pointer: coarse) {
+  :focus,
+  :focus-visible {
+    outline: none;
+  }
+}

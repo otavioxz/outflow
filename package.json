@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "usuario": "tsx scripts/usuario.mts",
     "migrar": "tsx scripts/migrar-para-turso.mts",
-    "test": "node --import tsx --test \"tests/**/*.test.ts\""
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
@@ -32,6 +33,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^18.0.9",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.32",
     "shadcn": "^4.23.0",
     "tailwindcss": "^4.3.3",

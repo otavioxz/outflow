@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, MessageCircle, Mic, PiggyBank, ReceiptText, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BadgeCheck, ChevronLeft, ChevronRight, MessageCircle, Mic, PiggyBank, ReceiptText, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -171,7 +171,12 @@ async function Painel({ searchParams }: Props) {
             </CardContent>
           </Card>
 
-          <Card className="col-span-2 bg-success/5 ring-success/25">
+          <Card
+            className={cn(
+              "col-span-2",
+              metaGuardado && totalGuardado >= metaGuardado ? "card-meta-batida" : "bg-success/5 ring-success/25",
+            )}
+          >
             <CardHeader>
               <CardDescription className="flex items-center gap-1.5 font-medium text-success">
                 <PiggyBank className="size-4" />
@@ -211,7 +216,7 @@ async function Painel({ searchParams }: Props) {
             <section className="grid gap-4 lg:grid-cols-5">
               <Card className="lg:col-span-2">
                 <CardHeader>
-                  <CardTitle>Por categoria</CardTitle>
+                  <CardTitle>Gastos por categoria</CardTitle>
                   <CardDescription>
                     {porCategoria[0].categoria} é a maior: {Math.round((porCategoria[0].total / total) * 100)}% do mês
                   </CardDescription>
@@ -222,7 +227,7 @@ async function Painel({ searchParams }: Props) {
               </Card>
               <Card className="lg:col-span-3">
                 <CardHeader>
-                  <CardTitle>Dia a dia</CardTitle>
+                  <CardTitle>Gastos dia a dia</CardTitle>
                   <CardDescription>Quanto saiu em cada dia de {nomeMes}</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -232,8 +237,8 @@ async function Painel({ searchParams }: Props) {
             </section>
 
             <ListaLancamentos
-              titulo="Lançamentos"
-              descricao={`${gastos.length} ${gastos.length === 1 ? "lançamento" : "lançamentos"} em ${nomeMes}`}
+              titulo="Gastos lançados"
+              descricao={`${gastos.length} ${gastos.length === 1 ? "gasto" : "gastos"} em ${nomeMes}`}
             >
               <Table containerClassName="overflow-visible">
                 <TableHeader className="sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--border)]">
@@ -299,7 +304,7 @@ async function Painel({ searchParams }: Props) {
 
         {guardados.length > 0 && (
           <ListaLancamentos
-            titulo="Guardados"
+            titulo="Valores guardados"
             descricao={`${guardados.length} ${guardados.length === 1 ? "valor guardado" : "valores guardados"} em ${nomeMes}, fora dos gastos`}
           >
             <Table containerClassName="overflow-visible">
@@ -399,9 +404,14 @@ function BarraMeta({ meta, guardado }: { meta: number; guardado: number }) {
         <span>
           <span className="font-medium text-foreground">{pct}%</span> da meta de {formatarReais(meta)}
         </span>
-        <span className={cn(falta <= 0 && "font-medium text-success")}>
-          {falta > 0 ? `Faltam ${formatarReais(falta)}` : "Meta batida 🎉"}
-        </span>
+        {falta > 0 ? (
+          <span>Faltam {formatarReais(falta)}</span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success ring-1 ring-success/25">
+            <BadgeCheck className="size-3.5" aria-hidden />
+            Meta batida
+          </span>
+        )}
       </p>
     </div>
   );

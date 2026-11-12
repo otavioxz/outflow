@@ -21,7 +21,7 @@ export function MenuUsuario({ nome, email, fotoVersao }: { nome: string; email: 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={cn(buttonVariants({ variant: "ghost" }), "h-9 gap-2 px-1.5 sm:pr-3")}
+        className={cn(buttonVariants({ variant: "ghost" }), "size-9 gap-2 rounded-full p-0 ring-1 ring-foreground/10 sm:w-auto sm:pr-3 sm:pl-1.5 pointer-coarse:focus-visible:ring-1 pointer-coarse:focus-visible:ring-foreground/10")}
         aria-label={`Conta de ${nome}`}
       >
         <Avatar nome={nome} fotoVersao={fotoVersao} />
