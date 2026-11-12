@@ -395,14 +395,20 @@ function BarraMeta({ meta, guardado }: { meta: number; guardado: number }) {
       >
         <div className="h-full rounded-full bg-success transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
-      <p className="flex flex-wrap justify-between gap-x-4 text-sm text-muted-foreground">
-        <span>
+      {/* com a meta batida, o selo fica sempre na mesma linha (o texto encurta se faltar espaço) */}
+      <p
+        className={cn(
+          "flex items-center justify-between gap-x-3 gap-y-1 text-sm text-muted-foreground",
+          falta > 0 ? "flex-wrap" : "flex-nowrap",
+        )}
+      >
+        <span className="min-w-0 truncate">
           <span className="font-medium text-foreground">{pct}%</span> da meta de {formatarReais(meta)}
         </span>
         {falta > 0 ? (
           <span>Faltam {formatarReais(falta)}</span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success ring-1 ring-success/25">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success ring-1 ring-success/25">
             <BadgeCheck className="size-3.5" aria-hidden />
             Meta batida
           </span>
