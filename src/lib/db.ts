@@ -186,6 +186,13 @@ export async function prepararDb(): Promise<Client> {
           criado_em TEXT NOT NULL DEFAULT (datetime('now'))
         )`,
         `CREATE INDEX IF NOT EXISTS idx_inscricoes_push_usuario ON inscricoes_push(usuario_id)`,
+        // Indicadores do painel que o usuário marcou com estrela (aparecem na página Favoritos)
+        `CREATE TABLE IF NOT EXISTS favoritos (
+          usuario_id INTEGER NOT NULL,
+          indicador TEXT NOT NULL,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (usuario_id, indicador)
+        )`,
       ],
       "write",
     )

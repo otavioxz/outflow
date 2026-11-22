@@ -14,10 +14,13 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 export function ListaLancamentos({
   titulo,
   descricao,
+  acao,
   children,
 }: {
   titulo: string;
   descricao: string;
+  /** botão extra no canto do cartão, antes do de tela cheia (ex.: estrela de favorito) */
+  acao?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [cheia, setCheia] = useState(false);
@@ -28,7 +31,8 @@ export function ListaLancamentos({
         <CardHeader>
           <CardTitle>{titulo}</CardTitle>
           <CardDescription>{descricao}</CardDescription>
-          <CardAction>
+          <CardAction className="flex items-center gap-1">
+            {acao}
             <Button
               variant="outline"
               size="icon-sm"

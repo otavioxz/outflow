@@ -1,10 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { paginaInicial } from "@/lib/favoritos";
 import { COOKIE_SESSAO } from "@/lib/requisicao";
+import { usuarioDaSessao } from "@/lib/usuarios";
 
 // Checagem otimista: sem cookie de sessão, nem chega a renderizar a página.
 // A validação de verdade (sessão existe e não expirou) acontece no servidor, em exigirUsuario().
-export function proxy(request: NextRequest) {
-  if (request.cookies.has(COOKIE_SESSAO)) return NextResponse.next();
+export async function proxy(request: NextRequest) {
+  const token = request.cookies.get(COOKIE_SESSAO)?.value;
+  if (token) {
+    // Abrir o app ("/") leva direto para Favoritos (se houver algum) ou Gastos, num redirecionamento
+    // HTTP: sem mostrar outra tela antes. Sessão inválida segue para a página "/", que manda ao login.
+    if (request.nextUrl.pathname === "/" && token.length <= 100) {
+      const usuario = await usuarioDaSessao(token);
+      if (usuario) {
+        const destino = request.nextUrl.clone();
+        destino.pathname = await paginaInicial(usuario.id);
+        return NextResponse.redirect(destino);
+      }
+    }
+    return NextResponse.next();
+  }
 
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return Response.json({ erro: "Não autenticado" }, { status: 401 });

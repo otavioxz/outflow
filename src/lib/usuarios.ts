@@ -153,7 +153,7 @@ export async function removerUsuario(email: string): Promise<boolean> {
   if (!r.rows[0]) return false;
   const id = r.rows[0].id;
   await db.batch(
-    ["sessoes", "gastos", "guardados", "atividades", "configuracoes_usuario", "inscricoes_push"].map((tabela) => ({
+    ["sessoes", "gastos", "guardados", "atividades", "configuracoes_usuario", "inscricoes_push", "favoritos"].map((tabela) => ({
       sql: `DELETE FROM ${tabela} WHERE usuario_id = ?`,
       args: [id],
     })),
