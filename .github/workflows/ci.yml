@@ -12,12 +12,33 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# statuses: write para publicar o resultado como "commit status" (o que a Vercel lê nas Deployment Checks)
+permissions:
+  contents: read
+  statuses: write
+
+env:
+  # no pull request, o commit é o do branch (github.sha seria o commit de merge temporário)
+  COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+  STATUS: outflow/ci
+
 jobs:
   verificar:
     name: Tipos, testes e build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # A Vercel só promove o deploy de produção quando este status fica verde (Deployment Checks).
+      # O check do Actions em si é um "check run", que ela não enxerga; por isso o status à parte.
+      - name: Avisar que a verificação começou
+        continue-on-error: true # PR de fork não tem permissão de escrita: não deve travar o CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/$COMMIT" \
+            -d "{\"state\":\"pending\",\"context\":\"$STATUS\",\"description\":\"Tipos, testes e build rodando\",\"target_url\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -38,3 +59,14 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Publicar o resultado
+        if: always() # também quando algum passo falhou, para a Vercel não ficar esperando
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ESTADO: ${{ job.status == 'success' && 'success' || 'failure' }}
+        run: |
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/statuses/$COMMIT" \
+            -d "{\"state\":\"$ESTADO\",\"context\":\"$STATUS\",\"description\":\"Tipos, testes e build: $ESTADO\",\"target_url\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
