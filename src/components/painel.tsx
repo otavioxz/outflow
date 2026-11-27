@@ -1,8 +1,9 @@
-import { ArrowDownRight, ArrowUpRight, BadgeCheck, ChevronLeft, ChevronRight, MessageCircle, Mic, PiggyBank, ReceiptText, Star, Trash2, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BadgeCheck, ChevronLeft, ChevronRight, CreditCard, MessageCircle, Mic, PiggyBank, ReceiptText, Star, Trash2, Wallet } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { apagarGastoAction, apagarGuardadoAction } from "@/app/actions";
 import { AoVivo } from "@/components/ao-vivo";
+import { ApagarParcela } from "@/components/apagar-parcela";
 import { BotaoFavorito } from "@/components/botao-favorito";
 import { Cabecalho } from "@/components/cabecalho";
 import { GraficoCategorias, GraficoDiario } from "@/components/graficos";
@@ -17,8 +18,9 @@ import { exigirUsuario } from "@/lib/auth";
 import { NOME_PAGAMENTO, formatarReais, hojeISO } from "@/lib/categorias";
 import { obterMetaGuardadoCentavos, obterOrcamentoCentavos } from "@/lib/configuracoes";
 import { listarFavoritos, type Indicador } from "@/lib/favoritos";
-import { gastosDoMes, totalDoMes } from "@/lib/gastos";
+import { gastosDoMes, parcelasFuturas, totalDoMes } from "@/lib/gastos";
 import { guardadosDoMes, totalGuardadoNoMes } from "@/lib/guardados";
+import { mesCurto } from "@/lib/parcelas";
 import { estadoWhatsapp } from "@/lib/vinculo";
 import { cn } from "@/lib/utils";
 
@@ -43,13 +45,14 @@ async function carregarDados(usuarioId: number, mes: string) {
   const mesAtual = hojeISO().slice(0, 7);
   const mesAnterior = deslocarMes(mes, -1);
 
-  const [gastos, totalAnterior, orcamento, guardados, guardadoAnterior, metaGuardado] = await Promise.all([
+  const [gastos, totalAnterior, orcamento, guardados, guardadoAnterior, metaGuardado, futuras] = await Promise.all([
     gastosDoMes(usuarioId, mes),
     totalDoMes(usuarioId, mesAnterior),
     obterOrcamentoCentavos(usuarioId),
     guardadosDoMes(usuarioId, mes),
     totalGuardadoNoMes(usuarioId, mesAnterior),
     obterMetaGuardadoCentavos(usuarioId),
+    parcelasFuturas(usuarioId, mes),
   ]);
 
   const total = gastos.reduce((s, g) => s + g.valor_centavos, 0);
@@ -76,6 +79,7 @@ async function carregarDados(usuarioId: number, mes: string) {
     guardadoAnterior,
     orcamento,
     metaGuardado,
+    futuras,
     diasDecorridos,
     porCategoria,
     porDia,
@@ -93,11 +97,18 @@ const variacao = (atual: number, anterior: number) => (anterior ? Math.round(((a
 /**
  * Cada indicador: nome (para a estrela e os avisos), espaço que ocupa na grade (2 colunas no
  * celular; no desktop, 12 nas páginas fixas e 4 nos Favoritos, onde a mistura é livre) e o conteúdo. `vazio` diz quando ele some da página Gastos/Guardado
- * (sem lançamentos no mês); na página Favoritos ele continua, com uma mensagem no lugar.
+ * (sem lançamentos no mês); na página Favoritos ele continua, com uma mensagem no lugar. `oculto` o tira de todas as páginas.
  */
 const INDICADORES: Record<
   Indicador,
-  { nome: string; grade: string; gradeFavoritos: string; vazio?: (d: Dados) => boolean; conteudo: (d: Dados, estrela: React.ReactNode) => React.ReactNode }
+  {
+    nome: string;
+    grade: string;
+    gradeFavoritos: string;
+    vazio?: (d: Dados) => boolean;
+    oculto?: (d: Dados) => boolean;
+    conteudo: (d: Dados, estrela: React.ReactNode) => React.ReactNode;
+  }
 > = {
   "gasto-mes": {
     nome: "Gasto do mês",
@@ -271,6 +282,15 @@ const INDICADORES: Record<
                   <TableCell className="max-w-56 whitespace-normal">
                     <span className="inline-flex items-center gap-1.5 font-medium">
                       {g.descricao}
+                      {g.parcela && (
+                        <span
+                          className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums"
+                          title={`Compra de ${formatarReais(g.total_compra ?? 0)} em ${g.parcelas}x`}
+                        >
+                          {g.parcela}/{g.parcelas}
+                          <span className="sr-only"> parcelas, compra de {formatarReais(g.total_compra ?? 0)}</span>
+                        </span>
+                      )}
                       {g.origem === "audio" && <Mic className="size-3.5 text-muted-foreground" aria-label="Registrado por áudio" />}
                       {g.origem === "nota" && (
                         <ReceiptText className="size-3.5 text-muted-foreground" aria-label="Lido da foto de uma nota fiscal" />
@@ -286,18 +306,22 @@ const INDICADORES: Record<
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{formatarReais(g.valor_centavos)}</TableCell>
                   <TableCell className="pr-4 sm:pr-2">
-                    <form action={apagarGastoAction}>
-                      <input type="hidden" name="id" value={g.id} />
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        aria-label={`Apagar ${g.descricao}`}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </form>
+                    {g.parcela && g.parcelas ? (
+                      <ApagarParcela id={g.id} descricao={g.descricao} parcela={g.parcela} parcelas={g.parcelas} />
+                    ) : (
+                      <form action={apagarGastoAction}>
+                        <input type="hidden" name="id" value={g.id} />
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          aria-label={`Apagar ${g.descricao}`}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </form>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -305,6 +329,49 @@ const INDICADORES: Record<
           </Table>
         </ListaLancamentos>
       ),
+  },
+
+  "parcelas-a-pagar": {
+    nome: "Parcelas a pagar",
+    grade: "col-span-2 lg:col-span-12",
+    gradeFavoritos: "col-span-2",
+    // só aparece para quem tem parcela depois do mês mostrado
+    oculto: (d) => d.futuras.total === 0,
+    conteudo: (d, estrela) => {
+      const proximos = d.futuras.porMes.slice(0, 6);
+      const resto = d.futuras.porMes.length - proximos.length;
+      const ultimo = d.futuras.porMes[d.futuras.porMes.length - 1];
+      return (
+        <Card className="h-full">
+          <CardHeader>
+            <CardDescription className="flex items-center gap-1.5">
+              <CreditCard className="size-4" />
+              Parcelas a pagar depois de {d.nomeMes}
+            </CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight tabular-nums sm:text-4xl">{formatarReais(d.futuras.total)}</CardTitle>
+            <CardAction>{estrela}</CardAction>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {d.futuras.compras} {d.futuras.compras === 1 ? "compra parcelada" : "compras parceladas"}, até {mesCurto(ultimo.mes)}
+            </p>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {proximos.map((m) => (
+                <li key={m.mes} className="rounded-lg bg-muted/50 px-3 py-2 ring-1 ring-foreground/5">
+                  <span className="block text-xs text-muted-foreground">{mesCurto(m.mes)}</span>
+                  <span className="block font-semibold tabular-nums">{formatarReais(m.total)}</span>
+                </li>
+              ))}
+            </ul>
+            {resto > 0 && (
+              <p className="text-xs text-muted-foreground">
+                e mais {resto} {resto === 1 ? "mês" : "meses"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      );
+    },
   },
 
   "guardado-mes": {
@@ -441,7 +508,7 @@ const INDICADORES: Record<
 
 /** Ordem dos indicadores nas páginas fixas. */
 const DA_PAGINA: Record<Exclude<PaginaPainel, "favoritos">, Indicador[]> = {
-  gastos: ["gasto-mes", "gasto-medio-dia", "gasto-mes-anterior", "grafico-categorias", "grafico-diario", "lista-gastos"],
+  gastos: ["gasto-mes", "gasto-medio-dia", "gasto-mes-anterior", "parcelas-a-pagar", "grafico-categorias", "grafico-diario", "lista-gastos"],
   guardado: ["guardado-mes", "guardado-mes-anterior", "lista-guardados"],
 };
 
@@ -460,8 +527,9 @@ export async function Painel({ pagina, searchParams }: { pagina: PaginaPainel; s
     estadoWhatsapp(usuario.id),
   ]);
 
-  const indicadores =
-    pagina === "favoritos" ? favoritos : DA_PAGINA[pagina].filter((id) => !INDICADORES[id].vazio?.(dados));
+  const indicadores = (pagina === "favoritos" ? favoritos : DA_PAGINA[pagina].filter((id) => !INDICADORES[id].vazio?.(dados))).filter(
+    (id) => !INDICADORES[id].oculto?.(dados),
+  );
   const { titulo, icone: Icone } = PAGINAS[pagina];
 
   return (
@@ -518,8 +586,11 @@ export async function Painel({ pagina, searchParams }: { pagina: PaginaPainel; s
           </Alert>
         )}
 
-        {indicadores.length === 0 ? (
+        {pagina === "favoritos" && favoritos.length === 0 ? (
           <SemFavoritos />
+        ) : indicadores.length === 0 ? (
+          // só nos Favoritos, quando todos os marcados estão ocultos neste mês (ex.: sem parcelas a pagar)
+          <p className="py-12 text-center text-sm text-muted-foreground">Nenhum dos seus favoritos tem dados em {dados.nomeMesAno}.</p>
         ) : (
           // nos favoritos a ordem é a de marcação; "dense" preenche os buracos que cartões de larguras diferentes deixam
           <section

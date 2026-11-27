@@ -7,6 +7,7 @@ export const INDICADORES = [
   "gasto-mes",
   "gasto-medio-dia",
   "gasto-mes-anterior",
+  "parcelas-a-pagar",
   "grafico-categorias",
   "grafico-diario",
   "lista-gastos",

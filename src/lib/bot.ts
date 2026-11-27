@@ -11,8 +11,9 @@ import {
 } from "./extrator";
 import { chavesVinculo, limparErros, minutosBloqueado, registrarErro } from "./limite-tentativas";
 import { iniciarAtividade, concluirAtividade } from "./atividades";
-import { desfazerUltimo, gastoDaNota, inserirGastos, totaisPorCategoria, totalDoMes } from "./gastos";
+import { desfazerUltimo, gastoDaNota, inserirGastos, totaisPorCategoria, totalDoMes, type NovoGasto } from "./gastos";
 import { inserirGuardados, totalGuardadoNoMes } from "./guardados";
+import { MAX_PARCELAS, dividirEmParcelas, mesCurto } from "./parcelas";
 import { transcreverAudio, transcricaoConfigurada } from "./transcricao";
 import { PADRAO_VINCULAR, vincularTelefone } from "./vinculo";
 import { baixarMidia, type MensagemWhatsApp } from "./whatsapp";
@@ -22,6 +23,7 @@ const AJUDA = `👋 Aqui é o *Outflow*, seu controle de gastos. É só me conta
 • "gastei 45 no ifood"
 • "mercado 230 no débito e uber 18,50"
 • "paguei 120 de luz ontem"
+• "tv 3000 em 10x no cartão" (lança uma parcela em cada mês)
 • "guardei 500 na poupança" (fica separado dos gastos)
 • ou mande um áudio 🎤
 • ou uma foto da nota fiscal 🧾
@@ -83,21 +85,20 @@ export async function processarMensagem(msg: MensagemWhatsApp, usuarioId: number
     return { tipo: "sem_gasto", texto, origem, resposta: `🤔 Não encontrei nenhum gasto nessa mensagem. Tente algo como "gastei 45 no ifood".${eco}` };
   }
 
+  if (gastos.some((g) => g.parcelas > MAX_PARCELAS))
+    return {
+      tipo: "sem_gasto",
+      texto,
+      origem,
+      resposta: `🤔 Consigo parcelar em até ${MAX_PARCELAS}x. Confira o número de parcelas e mande de novo.`,
+    };
+
   const total = gastos.length + guardados.length;
   const idMensagem = (i: number) => (total > 1 ? `${msg.id}#${i}` : msg.id);
   if (gastos.length)
     await inserirGastos(
       usuarioId,
-      gastos.map((g, i) => ({
-        valor_centavos: Math.round(g.valor * 100),
-        descricao: g.descricao,
-        categoria: g.categoria,
-        pagamento: g.pagamento,
-        data: g.data,
-        origem,
-        mensagem_original: texto,
-        mensagem_id: idMensagem(i),
-      })),
+      gastos.flatMap((g, i) => paraInserir(g, { origem, mensagem_original: texto, mensagem_id: idMensagem(i) })),
     );
   if (guardados.length)
     await inserirGuardados(
@@ -129,11 +130,46 @@ export async function processarMensagem(msg: MensagemWhatsApp, usuarioId: number
   return { tipo: "gasto", texto, origem, resposta: linhas.join("\n") };
 }
 
-/** "✅ R$ 45,00: iFood (Alimentação · Pix · 03/11)" */
+/** Total da compra em centavos: o valor dito, ou parcela × número de parcelas ("10x de 50"). */
+function totalDaCompra(g: GastoExtraido): number {
+  const centavos = Math.round(g.valor * 100);
+  return g.parcelas > 1 && g.valor_e_da_parcela ? centavos * g.parcelas : centavos;
+}
+
+/** Um gasto extraído vira um lançamento, ou um por mês se for parcelado (a 1ª parcela no mês da compra). */
+function paraInserir(g: GastoExtraido, extra: Pick<NovoGasto, "origem" | "mensagem_original" | "mensagem_id">): NovoGasto[] {
+  const base = { descricao: g.descricao, categoria: g.categoria, pagamento: g.pagamento, ...extra };
+  if (g.parcelas <= 1) return [{ ...base, valor_centavos: totalDaCompra(g), data: g.data }];
+  const parcelamento_id = crypto.randomUUID();
+  return dividirEmParcelas(totalDaCompra(g), g.parcelas, g.data).map((p) => ({
+    ...base,
+    pagamento: g.pagamento === "nao_informado" ? "credito" : g.pagamento,
+    valor_centavos: p.valor_centavos,
+    data: p.data,
+    parcelamento_id,
+    parcela: p.parcela,
+    parcelas: g.parcelas,
+  }));
+}
+
+/**
+ * "✅ R$ 45,00: iFood (Alimentação · Pix · 03/11)", ou numa compra parcelada:
+ * "✅ Notebook: 10x de R$ 500,00, total R$ 5.000,00 (Compras · Crédito)", e embaixo "📅 nov/2026 a ago/2027"
+ */
 function linhaGasto(g: GastoExtraido): string {
   const pagamento = g.pagamento !== "nao_informado" ? ` · ${NOME_PAGAMENTO[g.pagamento]}` : "";
   const data = g.data !== hojeISO() ? ` · ${g.data.split("-").reverse().join("/")}` : "";
-  return `✅ ${formatarReais(Math.round(g.valor * 100))}: ${g.descricao} (${g.categoria}${pagamento}${data})`;
+  if (g.parcelas <= 1) return `✅ ${formatarReais(totalDaCompra(g))}: ${g.descricao} (${g.categoria}${pagamento}${data})`;
+
+  const parcelas = dividirEmParcelas(totalDaCompra(g), g.parcelas, g.data);
+  const [primeira, ultima] = [parcelas[0], parcelas[parcelas.length - 1]];
+  const valores =
+    primeira.valor_centavos === ultima.valor_centavos
+      ? `${g.parcelas}x de ${formatarReais(primeira.valor_centavos)}`
+      : `${g.parcelas}x de ${formatarReais(primeira.valor_centavos)} (última de ${formatarReais(ultima.valor_centavos)})`;
+  const credito = g.pagamento === "nao_informado" ? " · Crédito" : pagamento;
+  const periodo = `${mesCurto(primeira.data.slice(0, 7))} a ${mesCurto(ultima.data.slice(0, 7))}`;
+  return `✅ ${g.descricao}: ${valores}, total ${formatarReais(totalDaCompra(g))} (${g.categoria}${credito})\n📅 ${periodo}`;
 }
 
 /** Lê a foto de uma nota fiscal e registra o total como um gasto. */
@@ -239,6 +275,8 @@ async function desfazer(usuarioId: number): Promise<string> {
   const g = await desfazerUltimo(usuarioId);
   if (!g) return "Não há nenhum lançamento para desfazer.";
   if (g.tipo === "guardado") return `🗑️ Apaguei o valor guardado: ${formatarReais(g.valor_centavos)}, ${g.descricao}`;
+  if (g.totalCompra !== null)
+    return `🗑️ Apaguei a compra parcelada: ${g.descricao}, ${g.parcelas}x, total ${formatarReais(g.totalCompra)} (${g.categoria})`;
   return `🗑️ Apaguei: ${formatarReais(g.valor_centavos)}, ${g.descricao} (${g.categoria})`;
 }
 

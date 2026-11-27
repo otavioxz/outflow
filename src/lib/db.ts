@@ -29,6 +29,10 @@ async function migrarColunas(): Promise<void> {
   // Foto de perfil (WebP de 256x256, ~15 KB) e a versão, que muda a cada troca para o navegador não usar a antiga
   await adicionarColuna("usuarios", "foto", "BLOB");
   await adicionarColuna("usuarios", "foto_versao", "INTEGER");
+  // Compra parcelada: cada parcela é um gasto no seu mês, ligadas pelo mesmo parcelamento_id ("3 de 10")
+  await adicionarColuna("gastos", "parcelamento_id", "TEXT");
+  await adicionarColuna("gastos", "parcela", "INTEGER");
+  await adicionarColuna("gastos", "parcelas", "INTEGER");
 
   await db().batch(
     [
@@ -36,6 +40,7 @@ async function migrarColunas(): Promise<void> {
       `CREATE INDEX IF NOT EXISTS idx_gastos_usuario_chave_nota ON gastos(usuario_id, chave_nota) WHERE chave_nota IS NOT NULL`,
       `CREATE INDEX IF NOT EXISTS idx_gastos_usuario_data ON gastos(usuario_id, data)`,
       `CREATE INDEX IF NOT EXISTS idx_guardados_usuario_data ON guardados(usuario_id, data)`,
+      `CREATE INDEX IF NOT EXISTS idx_gastos_usuario_parcelamento ON gastos(usuario_id, parcelamento_id) WHERE parcelamento_id IS NOT NULL`,
       `CREATE INDEX IF NOT EXISTS idx_atividades_usuario ON atividades(usuario_id, atualizada_em)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_telefone ON usuarios(telefone) WHERE telefone IS NOT NULL`,
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_codigo ON usuarios(codigo_vinculo) WHERE codigo_vinculo IS NOT NULL`,

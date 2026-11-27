@@ -8,6 +8,11 @@ const GastoExtraido = z.object({
   categoria: z.enum(CATEGORIAS),
   pagamento: z.enum(PAGAMENTOS),
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // Compra parcelada. Se o modelo omitir ou mandar algo estranho, vale como à vista; o limite de
+  // parcelas é conferido no bot, que avisa em vez de registrar errado.
+  parcelas: z.number().int().min(1).catch(1).default(1),
+  /** true: "valor" é o de cada parcela ("10x de 50"); false: é o total da compra ("5000 em 10x") */
+  valor_e_da_parcela: z.boolean().catch(false).default(false),
 });
 
 const GuardadoExtraido = z.object({
@@ -35,13 +40,18 @@ const SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["valor", "descricao", "categoria", "pagamento", "data"],
+        required: ["valor", "descricao", "categoria", "pagamento", "data", "parcelas", "valor_e_da_parcela"],
         properties: {
-          valor: { type: "number", description: "Valor em reais, ex.: 45.9" },
+          valor: { type: "number", description: "Valor em reais como foi dito, ex.: 45.9" },
           descricao: { type: "string", description: "Descrição curta, ex.: 'iFood', 'Conta de luz'" },
           categoria: { type: "string", enum: [...CATEGORIAS] },
           pagamento: { type: "string", enum: [...PAGAMENTOS] },
           data: { type: "string", description: "Data do gasto no formato YYYY-MM-DD" },
+          parcelas: { type: "integer", description: "Número de parcelas da compra; 1 se for à vista ou não for dito" },
+          valor_e_da_parcela: {
+            type: "boolean",
+            description: "true se 'valor' é o de cada parcela ('10x de 50'); false se é o total da compra ('5000 em 10x') ou se não é parcelado",
+          },
         },
       },
     },
@@ -71,6 +81,9 @@ Regras:
 - Escolha a categoria mais adequada. Use "Mercado" para supermercado/feira, "Alimentação" para restaurantes, lanches e delivery, "Contas" para luz, água, internet e telefone, "Moradia" para aluguel e condomínio, e "Assinaturas" para streaming e serviços recorrentes.
 - pagamento: use "nao_informado" se a forma de pagamento não for dita. "cartão" sem especificar é "credito".
 - data: use a data de hoje, a menos que a mensagem indique outra ("ontem", "sexta", "dia 10").
+- Compra parcelada ("em 10x", "parcelado em 3 vezes", "12 parcelas") é UM gasto com "parcelas" igual ao número de parcelas. Fora isso, "parcelas" é 1.
+- Em compra parcelada, "valor" é o número como foi dito, e "valor_e_da_parcela" diz o que ele é: "5000 parcelado em 10x" ou "TV de 3000 em 12 vezes" -> o total (false); "10x de 50", "3 parcelas de 200" -> cada parcela (true). Não faça a conta: mande o valor dito.
+- Compra parcelada sem forma de pagamento dita é "credito".
 - Dinheiro guardado NÃO é gasto: "guardei 500 na poupança", "separei 300 pra reserva", "investi 200", "coloquei 100 no cofrinho" vão em "guardados", nunca em "gastos". A descrição é onde foi guardado ("Poupança", "Reserva", "Investimento"); se não for dito, use "Poupança".
 - Uma mensagem pode ter as duas coisas ("mercado 200 e guardei 500"): cada valor vai para a sua lista.
 - Retiradas da poupança ("tirei 200 da poupança") não são registradas: não entram em nenhuma lista.
@@ -153,7 +166,7 @@ async function extrairComGroq(texto: string): Promise<Lancamentos> {
           content: `${SYSTEM}
 
 Responda SOMENTE com um JSON neste formato exato:
-{"gastos": [{"valor": 45.9, "descricao": "iFood", "categoria": "Alimentação", "pagamento": "credito", "data": "2026-01-31"}], "guardados": [{"valor": 500, "descricao": "Poupança", "data": "2026-01-31"}]}
+{"gastos": [{"valor": 45.9, "descricao": "iFood", "categoria": "Alimentação", "pagamento": "credito", "data": "2026-01-31", "parcelas": 1, "valor_e_da_parcela": false}], "guardados": [{"valor": 500, "descricao": "Poupança", "data": "2026-01-31"}]}
 - categoria: exatamente uma de ${CATEGORIAS.map((c) => `"${c}"`).join(", ")}
 - pagamento: exatamente um de ${PAGAMENTOS.map((p) => `"${p}"`).join(", ")}
 - Corrija nomes conhecidos escritos errado pela transcrição de áudio (ex.: "Antropik" -> "Anthropic", "ifudi" -> "iFood").`,
@@ -258,6 +271,8 @@ export async function extrairDeNota(imagem: Buffer, mimeType: string, legenda?: 
       categoria: nota.categoria,
       pagamento: nota.pagamento,
       data: nota.data ?? hojeISO(),
+      parcelas: 1,
+      valor_e_da_parcela: false,
     },
     chave: chave.length === 44 ? chave : undefined,
   };
@@ -265,7 +280,8 @@ export async function extrairDeNota(imagem: Buffer, mimeType: string, legenda?: 
 
 // ---------------------------------------------------------------------------
 // Modo sem IA: um extrator simples por palavras-chave, para testar sem ANTHROPIC_API_KEY.
-// Entende frases como "gastei 45,90 no ifood", "uber 18.50 no pix" ou "guardei 500 na poupança".
+// Entende frases como "gastei 45,90 no ifood", "uber 18.50 no pix", "guardei 500 na poupança",
+// "tv 3000 em 10x" (total) ou "parcelado 10x de 50 no cartão" (valor da parcela).
 
 const PALAVRAS_CATEGORIA: [Categoria, string[]][] = [
   ["Alimentação", ["ifood", "restaurante", "lanche", "almoço", "almoco", "jantar", "pizza", "padaria", "café", "cafe", "bar", "hamburguer", "rappi"]],
@@ -292,7 +308,11 @@ const PALAVRAS_IGNORADAS = new Set([
   "gastei", "paguei", "comprei", "foi", "foram", "de", "do", "da", "no", "na", "em", "com", "o", "a", "os", "as",
   "um", "uma", "reais", "real", "r$", "pix", "débito", "debito", "crédito", "credito", "cartão", "cartao",
   "dinheiro", "boleto", "hoje", "ontem", "pelo", "pela", "e",
+  "parcelado", "parcelada", "parcelei", "sem", "juros",
 ]);
+
+// "10x", "10 x", "10 vezes", "10 parcelas" (o número de parcelas, que não pode ser lido como valor)
+const PARCELAMENTO = /(?<![\p{L}\d])(?:em\s+)?(\d{1,3})\s*(?:x|vezes|parcelas)(?![\p{L}\d])/u;
 
 // Mensagens com estas palavras viram dinheiro guardado em vez de gasto
 const PALAVRAS_GUARDADO = ["guardei", "guardar", "poupança", "poupanca", "reserva", "investi", "cofrinho", "economizei"];
@@ -302,8 +322,13 @@ function contemPalavra(texto: string, palavra: string): boolean {
   return new RegExp(`(?<![\\p{L}\\d])${palavra}(?![\\p{L}\\d])`, "u").test(texto);
 }
 
-function extrairSemIA(texto: string): Lancamentos {
+function extrairSemIA(textoOriginal: string): Lancamentos {
   const nada: Lancamentos = { gastos: [], guardados: [] };
+  // Tira o "10x" antes de procurar o valor; se logo depois vem "de", o valor é o de cada parcela
+  const parcelamento = textoOriginal.toLowerCase().match(PARCELAMENTO);
+  const parcelas = parcelamento ? Number(parcelamento[1]) : 1;
+  const valorEDaParcela = Boolean(parcelamento && /^\s*de(?![\p{L}\d])/u.test(textoOriginal.slice(parcelamento.index! + parcelamento[0].length)));
+  const texto = parcelamento ? textoOriginal.replace(new RegExp(PARCELAMENTO.source, "iu"), " ") : textoOriginal;
   const minusculo = texto.toLowerCase();
   const numero = minusculo.match(/(\d{1,3}(?:\.\d{3})+|\d+)(?:[.,](\d{1,2}))?/);
   if (!numero) return nada;
@@ -327,7 +352,7 @@ function extrairSemIA(texto: string): Lancamentos {
   const categoria =
     PALAVRAS_CATEGORIA.find(([, palavras]) => palavras.some((p) => contemPalavra(minusculo, p)))?.[0] ??
     "Outros";
-  const pagamento = PALAVRAS_PAGAMENTO.find(([, re]) => re.test(minusculo))?.[0] ?? "nao_informado";
+  const pagamento = PALAVRAS_PAGAMENTO.find(([, re]) => re.test(minusculo))?.[0] ?? (parcelas > 1 ? "credito" : "nao_informado");
 
   const descricao = texto
     .replace(numero[0], " ")
@@ -345,6 +370,8 @@ function extrairSemIA(texto: string): Lancamentos {
         categoria,
         pagamento,
         data,
+        parcelas,
+        valor_e_da_parcela: valorEDaParcela,
       },
     ],
     guardados: [],
